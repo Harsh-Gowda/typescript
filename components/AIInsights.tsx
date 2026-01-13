@@ -16,8 +16,8 @@ const AIInsights: React.FC<Props> = ({ trades, displayCurrency }) => {
     if (trades.length === 0) return;
     setLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+
       const tradeDataSummary = trades.map(t => ({
         symbol: t.symbol,
         type: t.type,
@@ -65,7 +65,7 @@ const AIInsights: React.FC<Props> = ({ trades, displayCurrency }) => {
         </div>
         <h3 className="text-xl font-bold">Psychological Edge</h3>
       </div>
-      
+
       <p className="text-slate-400 text-xs mb-6 font-medium leading-relaxed">
         Gemini will analyze your emotional states, setup notes, and financial outcomes (in {displayCurrency}) to find patterns.
       </p>
@@ -75,7 +75,7 @@ const AIInsights: React.FC<Props> = ({ trades, displayCurrency }) => {
           <div className="text-sm leading-relaxed prose prose-invert prose-sm max-w-none">
             <div className="whitespace-pre-wrap">{insight}</div>
           </div>
-          <button 
+          <button
             onClick={() => setInsight(null)}
             className="text-xs text-indigo-400 hover:text-indigo-300 font-bold mt-6 pb-2 block uppercase tracking-widest"
           >
@@ -85,21 +85,20 @@ const AIInsights: React.FC<Props> = ({ trades, displayCurrency }) => {
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center py-10">
           <div className="mb-6 text-center">
-             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-700/50 mb-4 border border-slate-600/50">
-                <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-             </div>
-             <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Awaiting Data Points</p>
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-700/50 mb-4 border border-slate-600/50">
+              <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Awaiting Data Points</p>
           </div>
-          <button 
+          <button
             disabled={loading || trades.length < 3}
             onClick={generateInsights}
-            className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-tighter transition-all ${
-              loading || trades.length < 3 
-                ? 'bg-slate-700 text-slate-500 cursor-not-allowed border border-slate-600' 
+            className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-tighter transition-all ${loading || trades.length < 3
+                ? 'bg-slate-700 text-slate-500 cursor-not-allowed border border-slate-600'
                 : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:shadow-indigo-500/25 text-white shadow-lg'
-            }`}
+              }`}
           >
             {loading ? 'Processing...' : trades.length < 3 ? `Need ${3 - trades.length} more trades` : 'Generate Insights'}
           </button>
