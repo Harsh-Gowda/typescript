@@ -39,6 +39,11 @@ const Auth: React.FC = () => {
         <div className="min-h-screen flex items-center justify-center bg-[#0f172a] px-4">
             <div className="max-w-md w-full space-y-8 bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
                 <div className="text-center">
+                    <div className="flex justify-center mb-4">
+                        <div className="p-3 bg-indigo-500/10 rounded-2xl">
+                            <img src="/logo.svg" alt="TradeMind Logo" className="w-12 h-12" />
+                        </div>
+                    </div>
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent mb-2">
                         TradeMind
                     </h1>
