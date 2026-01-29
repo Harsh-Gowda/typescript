@@ -30,6 +30,7 @@ export interface Trade {
   notes?: string;
   pnl?: number;
   currency: Currency;
+  exitChartUrl?: string;
 }
 
 export interface TradingStats {

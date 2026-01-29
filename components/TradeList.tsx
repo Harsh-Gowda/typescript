@@ -5,7 +5,7 @@ import { Trade, TradeStatus, Emotion, Currency } from '../types';
 interface Props {
   trades: Trade[];
   displayCurrency: Currency;
-  onCloseTrade: (id: string, exitPrice: number, exitEmotion: Emotion, manualPnL?: number) => void;
+  onCloseTrade: (id: string, exitPrice: number, exitEmotion: Emotion, manualPnL?: number, exitNotes?: string, exitChartUrl?: string) => void;
   onDeleteTrade: (id: string) => void;
   onUpdateTrade: (trade: Trade) => void;
 }
@@ -50,10 +50,15 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
   const [closingId, setClosingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
-  
+
   const [exitPrice, setExitPrice] = useState<number>(0);
-  const [manualPnL, setManualPnL] = useState<number>(0);
+  const [manualPnL, setManualPnL] = useState<string>('');
   const [exitEmotion, setExitEmotion] = useState<Emotion>(Emotion.NEUTRAL);
+  const [exitNotes, setExitNotes] = useState<string>('');
+  const [exitChartUrl, setExitChartUrl] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
 
   const currencySymbol = displayCurrency === 'USD' ? '$' : '₹';
 
@@ -66,12 +71,12 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
   };
 
   return (
-    <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+    <div className="w-full bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
       <div className="p-6 border-b border-slate-700">
         <h3 className="text-xl font-bold">Positions ({displayCurrency})</h3>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
+      <div className="overflow-x-auto scrollbar-hide">
+        <table className="w-full text-left border-collapse">
           <thead className="bg-slate-900/50 text-slate-400 text-[10px] uppercase tracking-wider font-bold">
             <tr>
               <th className="px-6 py-4">Symbol</th>
@@ -83,10 +88,10 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700">
-            {trades.map(trade => {
+            {trades.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(trade => {
               const displayPnL = convert(trade.pnl, trade.currency, displayCurrency);
               const displayEntry = convert(trade.entryPrice, trade.currency, displayCurrency);
-              
+
               return (
                 <tr key={trade.id} className="hover:bg-slate-700/30 transition-colors group">
                   <td className="px-6 py-4">
@@ -96,9 +101,8 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                      trade.type === 'Long' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${trade.type === 'Long' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                      }`}>
                       {trade.type}
                     </span>
                   </td>
@@ -106,10 +110,9 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
                     <span className="text-slate-300 font-mono text-sm">{currencySymbol}{displayEntry.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <div className={`font-mono text-sm font-bold ${
-                      trade.status === TradeStatus.OPEN ? 'text-slate-500 italic' : 
+                    <div className={`font-mono text-sm font-bold ${trade.status === TradeStatus.OPEN ? 'text-slate-500 italic' :
                       (trade.pnl || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                    }`}>
+                      }`}>
                       {trade.status === TradeStatus.OPEN ? 'Active' : `${displayPnL >= 0 ? '+' : '-'}${currencySymbol}${Math.abs(displayPnL).toFixed(2)}`}
                     </div>
                   </td>
@@ -119,17 +122,17 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
                       {trade.exitEmotion && <EmotionIndicator emotion={trade.exitEmotion} />}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
+                  <td className="px-4 lg:px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-1 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                      <button
                         onClick={() => setEditingTrade(trade)}
                         className="text-slate-500 hover:text-indigo-400 p-2 transition-colors"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                       </button>
-                      
+
                       {trade.status === TradeStatus.OPEN ? (
-                        <button 
+                        <button
                           onClick={() => {
                             setClosingId(trade.id);
                             // Reset defaults based on entry
@@ -141,7 +144,7 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
                           Exit
                         </button>
                       ) : (
-                        <button 
+                        <button
                           onClick={() => setDeletingId(trade.id)}
                           className="text-slate-600 hover:text-rose-400 p-2 transition-colors"
                         >
@@ -157,21 +160,81 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
         </table>
       </div>
 
+      {/* Premium Pagination Controls */}
+      {trades.length > itemsPerPage && (
+        <div className="px-4 lg:px-6 py-5 bg-slate-900/40 border-t border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`p-2 rounded-xl border transition-all duration-300 ${currentPage === 1
+                ? 'bg-slate-800/20 border-slate-700/30 text-slate-600 cursor-not-allowed'
+                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 hover:border-indigo-500/50 hover:text-white hover:scale-105 active:scale-95'
+                }`}
+              title="Previous Page"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(trades.length / itemsPerPage)))}
+              disabled={currentPage === Math.ceil(trades.length / itemsPerPage)}
+              className={`p-2 rounded-xl border transition-all duration-300 ${currentPage === Math.ceil(trades.length / itemsPerPage)
+                ? 'bg-slate-800/20 border-slate-700/30 text-slate-600 cursor-not-allowed'
+                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 hover:border-indigo-500/50 hover:text-white hover:scale-105 active:scale-95'
+                }`}
+              title="Next Page"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: Math.ceil(trades.length / itemsPerPage) }).map((_, idx) => {
+              const pageNum = idx + 1;
+              const isCurrent = currentPage === pageNum;
+              // Only show a limited number of page chips if there are too many
+              if (pageNum === 1 || pageNum === Math.ceil(trades.length / itemsPerPage) || (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)) {
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`min-w-[32px] h-8 flex items-center justify-center rounded-lg text-[10px] font-black transition-all ${isCurrent
+                      ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)] scale-110'
+                      : 'bg-slate-800/50 border border-slate-700/50 text-slate-500 hover:text-white hover:bg-slate-700'
+                      }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              }
+              if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                return <span key={pageNum} className="text-slate-700 mx-0.5">•</span>;
+              }
+              return null;
+            })}
+          </div>
+
+          <div className="hidden sm:block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+            Records {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, trades.length)} of {trades.length}
+          </div>
+        </div>
+      )}
+
       {/* Edit Modal (Currency aware) */}
       {editingTrade && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
           <form onSubmit={handleEditSubmit} className="bg-slate-800 p-8 rounded-2xl border border-slate-700 w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
-               <h3 className="text-xl font-bold text-white">Edit Record</h3>
-               <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-700">
+              <h3 className="text-xl font-bold text-white">Edit Record</h3>
+              <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-700">
                 {(['USD', 'INR'] as Currency[]).map((curr) => (
                   <button
                     key={curr}
                     type="button"
-                    onClick={() => setEditingTrade({...editingTrade, currency: curr})}
-                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
-                      editingTrade.currency === curr ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'
-                    }`}
+                    onClick={() => setEditingTrade({ ...editingTrade, currency: curr })}
+                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${editingTrade.currency === curr ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'
+                      }`}
                   >
                     {curr}
                   </button>
@@ -182,11 +245,11 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Symbol</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-indigo-500 transition-colors"
                   value={editingTrade.symbol}
-                  onChange={e => setEditingTrade({...editingTrade, symbol: e.target.value.toUpperCase()})}
+                  onChange={e => setEditingTrade({ ...editingTrade, symbol: e.target.value.toUpperCase() })}
                 />
               </div>
               <div>
@@ -195,19 +258,19 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Entry Price ({editingTrade.currency === 'USD' ? '$' : '₹'})</label>
-                <input 
+                <input
                   type="number" step="any"
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono"
                   value={editingTrade.entryPrice}
-                  onChange={e => setEditingTrade({...editingTrade, entryPrice: parseFloat(e.target.value)})}
+                  onChange={e => setEditingTrade({ ...editingTrade, entryPrice: parseFloat(e.target.value) })}
                 />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Status</label>
-                <select 
+                <select
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none"
                   value={editingTrade.status}
-                  onChange={e => setEditingTrade({...editingTrade, status: e.target.value as TradeStatus})}
+                  onChange={e => setEditingTrade({ ...editingTrade, status: e.target.value as TradeStatus })}
                 >
                   <option value={TradeStatus.OPEN}>Open</option>
                   <option value={TradeStatus.CLOSED}>Closed</option>
@@ -217,28 +280,28 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
                 <>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Exit Price ({editingTrade.currency === 'USD' ? '$' : '₹'})</label>
-                    <input 
+                    <input
                       type="number" step="any"
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono"
                       value={editingTrade.exitPrice || 0}
-                      onChange={e => setEditingTrade({...editingTrade, exitPrice: parseFloat(e.target.value)})}
+                      onChange={e => setEditingTrade({ ...editingTrade, exitPrice: parseFloat(e.target.value) })}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">PnL Amount ({editingTrade.currency === 'USD' ? '$' : '₹'})</label>
-                    <input 
+                    <input
                       type="number" step="any"
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono"
                       value={editingTrade.pnl || 0}
-                      onChange={e => setEditingTrade({...editingTrade, pnl: parseFloat(e.target.value)})}
+                      onChange={e => setEditingTrade({ ...editingTrade, pnl: parseFloat(e.target.value) })}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Exit Emotion</label>
-                    <select 
+                    <select
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono text-xs"
                       value={editingTrade.exitEmotion || Emotion.NEUTRAL}
-                      onChange={e => setEditingTrade({...editingTrade, exitEmotion: e.target.value as Emotion})}
+                      onChange={e => setEditingTrade({ ...editingTrade, exitEmotion: e.target.value as Emotion })}
                     >
                       {Object.values(Emotion).map(emo => <option key={emo} value={emo}>{emo}</option>)}
                     </select>
@@ -246,7 +309,7 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
                 </>
               )}
             </div>
-            
+
             <div className="flex gap-3 mt-8">
               <button type="button" onClick={() => setEditingTrade(null)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-all">Cancel</button>
               <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all">Save Changes</button>
@@ -263,18 +326,19 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
             <div className="space-y-5">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Final Profit / Loss ({currencySymbol})</label>
-                <input 
+                <input
                   type="number" step="any" autoFocus
                   placeholder="e.g. +500 or -200"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono text-lg font-bold"
-                  onChange={e => setManualPnL(parseFloat(e.target.value))}
+                  value={manualPnL}
+                  onChange={e => setManualPnL(e.target.value)}
                 />
                 <p className="text-[10px] text-slate-500 mt-1 uppercase">Enter total amount won (+) or lost (-)</p>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Final Exit Price (Optional)</label>
-                <input 
+                <input
                   type="number" step="any"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
                   value={exitPrice}
@@ -284,20 +348,47 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Final Emotion</label>
-                <select 
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                <select
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
                   onChange={e => setExitEmotion(e.target.value as Emotion)}
                   defaultValue={Emotion.NEUTRAL}
                 >
                   {Object.values(Emotion).map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
               </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Exit Psychology</label>
+                <textarea
+                  rows={2}
+                  placeholder="Why did you exit? e.g. Target hit, news event..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs"
+                  value={exitNotes}
+                  onChange={e => setExitNotes(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Exit Chart URL</label>
+                <input
+                  type="text"
+                  placeholder="Link to your exit chart image..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs font-mono"
+                  value={exitChartUrl}
+                  onChange={e => setExitChartUrl(e.target.value)}
+                />
+              </div>
+
               <div className="flex gap-3 mt-8">
                 <button onClick={() => setClosingId(null)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-all">Back</button>
-                <button 
-                  onClick={() => { 
-                    onCloseTrade(closingId, exitPrice, exitEmotion, manualPnL); 
-                    setClosingId(null); 
+                <button
+                  onClick={() => {
+                    const pnlValue = manualPnL === '' ? undefined : parseFloat(manualPnL);
+                    onCloseTrade(closingId, exitPrice, exitEmotion, pnlValue, exitNotes, exitChartUrl);
+                    setClosingId(null);
+                    setExitNotes('');
+                    setManualPnL('');
+                    setExitChartUrl('');
                   }}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all"
                 >
@@ -310,27 +401,29 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
       )}
 
       {/* Delete Confirmation Modal */}
-      {deletingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 w-full max-w-sm shadow-2xl text-center">
-            <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-500/20">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            </div>
-            <h3 className="text-xl font-bold mb-2 text-white">Discard Entry?</h3>
-            <p className="text-slate-400 text-sm mb-8">This action will permanently remove the trade from your journal.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeletingId(null)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-all">Cancel</button>
-              <button 
-                onClick={() => { onDeleteTrade(deletingId); setDeletingId(null); }}
-                className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all"
-              >
-                Delete
-              </button>
+      {
+        deletingId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 w-full max-w-sm shadow-2xl text-center">
+              <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-500/20">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              </div>
+              <h3 className="text-xl font-bold mb-2 text-white">Discard Entry?</h3>
+              <p className="text-slate-400 text-sm mb-8">This action will permanently remove the trade from your journal.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeletingId(null)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-all">Cancel</button>
+                <button
+                  onClick={() => { onDeleteTrade(deletingId); setDeletingId(null); }}
+                  className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

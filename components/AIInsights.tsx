@@ -16,7 +16,15 @@ const AIInsights: React.FC<Props> = ({ trades, displayCurrency }) => {
     if (trades.length === 0) return;
     setLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      // Check for API key in both popular Vite/Process locations
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (window as any).process?.env?.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        throw new Error("Gemini API Key not found. Please check your .env file and ensure it starts with VITE_GEMINI_API_KEY.");
+      }
+
+      console.log("Initializing Gemini AI with v1 API");
+      const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
 
       const tradeDataSummary = trades.map(t => ({
         symbol: t.symbol,
@@ -41,15 +49,20 @@ const AIInsights: React.FC<Props> = ({ trades, displayCurrency }) => {
         Ensure all currency references in your response use the user's preferred currency (${displayCurrency}) where appropriate.
         Keep the tone professional and data-driven. Use markdown formatting.`;
 
+      console.log("Generating insights with models/gemini-1.5-flash...");
+
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'models/gemini-1.5-flash',
         contents: prompt,
       });
 
-      setInsight(response.text || "No insights available at this time.");
-    } catch (error) {
-      console.error(error);
-      setInsight("Failed to load AI insights. Check your connection or API key.");
+      // The new SDK should have response.text
+      const resultText = response.text;
+      setInsight(resultText || "AI generated a response but the text content was empty.");
+
+    } catch (error: any) {
+      console.error("Detailed API Error:", error);
+      setInsight(`AI Error: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -96,8 +109,8 @@ const AIInsights: React.FC<Props> = ({ trades, displayCurrency }) => {
             disabled={loading || trades.length < 3}
             onClick={generateInsights}
             className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-tighter transition-all ${loading || trades.length < 3
-                ? 'bg-slate-700 text-slate-500 cursor-not-allowed border border-slate-600'
-                : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:shadow-indigo-500/25 text-white shadow-lg'
+              ? 'bg-slate-700 text-slate-500 cursor-not-allowed border border-slate-600'
+              : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:shadow-indigo-500/25 text-white shadow-lg'
               }`}
           >
             {loading ? 'Processing...' : trades.length < 3 ? `Need ${3 - trades.length} more trades` : 'Generate Insights'}
@@ -107,7 +120,7 @@ const AIInsights: React.FC<Props> = ({ trades, displayCurrency }) => {
 
       <div className="mt-6 pt-4 border-t border-slate-700">
         <div className="flex justify-between items-center text-[9px] font-black tracking-widest uppercase opacity-40">
-          <span>Gemini 3 Flash</span>
+          <span>Gemini AI</span>
           <span className="text-indigo-400">Multi-Currency V2</span>
         </div>
       </div>
