@@ -10,6 +10,7 @@ import Analytics from './components/Analytics';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Auth from './components/Auth';
 import { supabase } from './lib/supabase';
+import TradeMindChat from './components/TradeMindChat';
 
 const TradeJournal: React.FC = () => {
   const { signOut, user } = useAuth();
@@ -366,6 +367,9 @@ const TradeJournal: React.FC = () => {
           </button>
         </nav>
       </main>
+
+      {/* TradeMind AI Chatbot */}
+      <TradeMindChat trades={trades} displayCurrency={displayCurrency} />
     </div>
   );
 };
