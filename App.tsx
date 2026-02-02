@@ -1,12 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation, NavLink, Navigate } from 'react-router-dom';
 import { Trade, TradeStatus, Emotion, Currency } from './types';
-import Dashboard from './components/Dashboard';
-import Calendar from './components/Calendar';
+import DashboardPage from './components/DashboardPage';
 import MarketCalendar from './components/MarketCalendar';
 import TradeForm from './components/TradeForm';
-import TradeList from './components/TradeList';
-import Analytics from './components/Analytics';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Auth from './components/Auth';
 import { supabase } from './lib/supabase';
@@ -14,12 +12,15 @@ import TradeMindChat from './components/TradeMindChat';
 
 const TradeJournal: React.FC = () => {
   const { signOut, user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation(); // Used for header/nav active states
   const [trades, setTrades] = useState<Trade[]>([]);
   const [displayCurrency, setDisplayCurrency] = useState<Currency>(() => {
     return (localStorage.getItem('trademind_currency') as Currency) || 'USD';
   });
-  const [isAdding, setIsAdding] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'market'>('dashboard');
+
+  // Derived state to keep UI logic consistent with routing
+  const isAdding = location.pathname === '/add';
 
   useEffect(() => {
     localStorage.setItem('trademind_currency', displayCurrency);
@@ -90,7 +91,7 @@ const TradeJournal: React.FC = () => {
       console.error('Error adding trade:', error);
       alert('Failed to save trade. Check console.');
     } else {
-      setIsAdding(false);
+      navigate('/');
       fetchTrades();
     }
   };
@@ -189,7 +190,7 @@ const TradeJournal: React.FC = () => {
         {/* Global Action */}
         <div className="px-6 mb-8 w-full">
           <button
-            onClick={() => setIsAdding(!isAdding)}
+            onClick={() => isAdding ? navigate('/') : navigate('/add')}
             className="w-full flex items-center justify-center gap-3 bg-indigo-600 hover:bg-indigo-500 text-white p-3.5 rounded-2xl transition-all duration-300 shadow-xl shadow-indigo-600/20 active:scale-95 group overflow-hidden relative"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
@@ -203,22 +204,27 @@ const TradeJournal: React.FC = () => {
           <div className="px-4 mb-2">
             <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Main Journal</p>
           </div>
-          {[
-            { id: 'dashboard', name: 'Dashboard', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg> },
-            { id: 'market', name: 'Market Calendar', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> }
-          ].map(item => (
-            <div
-              key={item.id}
-              onClick={() => {
-                setCurrentView(item.id as any);
-                setIsAdding(false);
-              }}
-              className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 cursor-pointer group ${currentView === item.id && !isAdding ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/10' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'}`}
-            >
-              <div className="shrink-0 group-hover:scale-110 transition-transform">{item.icon}</div>
-              <span className="text-[11px] font-bold uppercase tracking-wider">{item.name}</span>
+
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) => `flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 cursor-pointer group ${isActive && !isAdding ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/10' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'}`}
+          >
+            <div className="shrink-0 group-hover:scale-110 transition-transform">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
             </div>
-          ))}
+            <span className="text-[11px] font-bold uppercase tracking-wider">Dashboard</span>
+          </NavLink>
+
+          <NavLink
+            to="/market"
+            className={({ isActive }) => `flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 cursor-pointer group ${isActive ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/10' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'}`}
+          >
+            <div className="shrink-0 group-hover:scale-110 transition-transform">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            </div>
+            <span className="text-[11px] font-bold uppercase tracking-wider">Market Calendar</span>
+          </NavLink>
         </nav>
 
         {/* Sidebar Footer */}
@@ -302,69 +308,63 @@ const TradeJournal: React.FC = () => {
         </header>
 
         <div className="w-full px-6 lg:px-10 py-6 lg:py-10 relative z-10">
-          {isAdding ? (
-            <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-              <div className="flex justify-between items-center bg-slate-900/40 p-4 lg:p-6 rounded-2xl lg:rounded-3xl border border-slate-700/30 backdrop-blur-xl">
-                <div>
-                  <h2 className="text-xl lg:text-2xl font-black text-white tracking-tight">Log New Position</h2>
-                  <p className="text-slate-500 text-[10px] lg:text-xs mt-1 font-medium tracking-wide">Record your strategy and emotional state.</p>
-                </div>
-              </div>
-              <TradeForm
-                onSubmit={addTrade}
-                onCancel={() => setIsAdding(false)}
-                defaultCurrency={displayCurrency}
+          <Routes>
+            <Route path="/" element={
+              <DashboardPage
+                trades={trades}
+                displayCurrency={displayCurrency}
+                onCloseTrade={closeTrade}
+                onDeleteTrade={deleteTrade}
+                onUpdateTrade={updateTrade}
               />
-            </div>
-          ) : currentView === 'dashboard' ? (
-            <div className="w-full space-y-8 lg:space-y-12 animate-in fade-in duration-500">
-              <Dashboard trades={trades} displayCurrency={displayCurrency} />
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 lg:gap-10">
-                <div className="xl:col-span-8">
-                  <TradeList
-                    trades={trades}
-                    displayCurrency={displayCurrency}
-                    onCloseTrade={closeTrade}
-                    onDeleteTrade={deleteTrade}
-                    onUpdateTrade={updateTrade}
-                  />
+            } />
+            <Route path="/market" element={<MarketCalendar />} />
+            <Route path="/add" element={
+              <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+                <div className="flex justify-between items-center bg-slate-900/40 p-4 lg:p-6 rounded-2xl lg:rounded-3xl border border-slate-700/30 backdrop-blur-xl">
+                  <div>
+                    <h2 className="text-xl lg:text-2xl font-black text-white tracking-tight">Log New Position</h2>
+                    <p className="text-slate-500 text-[10px] lg:text-xs mt-1 font-medium tracking-wide">Record your strategy and emotional state.</p>
+                  </div>
                 </div>
-                <div className="xl:col-span-4">
-                  <Analytics trades={trades} displayCurrency={displayCurrency} />
-                </div>
-                <div className="w-full xl:col-span-12">
-                  <Calendar trades={trades} displayCurrency={displayCurrency} />
-                </div>
+                <TradeForm
+                  onSubmit={addTrade}
+                  onCancel={() => navigate('/')}
+                  defaultCurrency={displayCurrency}
+                />
               </div>
-            </div>
-          ) : (
-            <MarketCalendar />
-          )}
+            } />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </div>
 
         {/* Mobile Bottom Navigation */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900/80 backdrop-blur-2xl border-t border-slate-800/50 px-6 py-3 flex items-center justify-between z-40">
-          <button
-            onClick={() => { setCurrentView('dashboard'); setIsAdding(false); }}
-            className={`flex flex-col items-center gap-1 ${currentView === 'dashboard' && !isAdding ? 'text-indigo-400' : 'text-slate-500'}`}
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) => `flex flex-col items-center gap-1 ${isActive && !isAdding ? 'text-indigo-400' : 'text-slate-500'}`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
             <span className="text-[10px] font-black uppercase tracking-tighter">Dashboard</span>
-          </button>
+          </NavLink>
+
           <div className="relative -mt-12">
-            <button
-              onClick={() => setIsAdding(!isAdding)}
-              className="w-14 h-14 bg-indigo-600 rounded-2xl shadow-[0_8px_25px_rgba(79,70,229,0.4)] flex items-center justify-center text-white active:scale-90 transition-transform border-4 border-[#0f172a]">
+            <NavLink
+              to={isAdding ? "/" : "/add"}
+              className="w-14 h-14 bg-indigo-600 rounded-2xl shadow-[0_8px_25px_rgba(79,70,229,0.4)] flex items-center justify-center text-white active:scale-90 transition-transform border-4 border-[#0f172a]"
+            >
               <svg className={`w-6 h-6 transition-transform duration-300 ${isAdding ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-            </button>
+            </NavLink>
           </div>
-          <button
-            onClick={() => { setCurrentView('market'); setIsAdding(false); }}
-            className={`flex flex-col items-center gap-1 ${currentView === 'market' && !isAdding ? 'text-indigo-400' : 'text-slate-500'}`}
+
+          <NavLink
+            to="/market"
+            className={({ isActive }) => `flex flex-col items-center gap-1 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
             <span className="text-[10px] font-black uppercase tracking-tighter">Events</span>
-          </button>
+          </NavLink>
         </nav>
       </main>
 
