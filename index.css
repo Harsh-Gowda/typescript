@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+/* Custom Utilities copied from index.html style block */
+@layer utilities {
+  .glass-card {
+    background: rgba(30, 41, 59, 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .premium-glow {
+    box-shadow: 0 0 40px -10px rgba(79, 70, 229, 0.3);
+  }
+}
+
+/* Base styles */
+body {
+  background: radial-gradient(circle at top right, #1e293b, #0f172a);
+  background-attachment: fixed;
+}
