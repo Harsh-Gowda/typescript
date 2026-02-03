@@ -121,7 +121,7 @@ const TradeMindChat: React.FC<Props> = ({ trades, displayCurrency }) => {
                 category: data.issue_type || data.category || 'BUG',
                 description: data.description || `Bug report via assistant`,
                 urgency: data.urgency || 'medium',
-                contact_email: null,
+                contact_email: user?.email || null, // Capture logged-in user's email
                 page_url: data.page ? `internal://${data.page}` : window.location.href,
                 user_agent: navigator.userAgent
             });
