@@ -93,6 +93,7 @@ const TradeMindChat: React.FC<Props> = ({ trades, displayCurrency }) => {
                 .from('chat_ratings')
                 .insert({
                     user_id: user.id,
+                    user_email: user.email, // Add user email here
                     rating: value,
                     message_count: messages.length,
                     timestamp: new Date().toISOString()
