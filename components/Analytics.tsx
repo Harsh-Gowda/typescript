@@ -79,47 +79,53 @@ const Analytics: React.FC<AnalyticsProps> = ({ trades, displayCurrency }) => {
                     </div>
                 </div>
 
-                <div className="h-[280px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={equityData}>
-                            <defs>
-                                <linearGradient id="colorPnl" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                            <XAxis
-                                dataKey="name"
-                                stroke="#64748b"
-                                fontSize={10}
-                                tickLine={false}
-                                axisLine={false}
-                            />
-                            <YAxis
-                                stroke="#64748b"
-                                fontSize={10}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={(value) => `${currencySymbol}${value}`}
-                            />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px' }}
-                                itemStyle={{ color: '#fff' }}
-                                formatter={(value: any) => [`${currencySymbol}${value.toFixed(2)}`, 'Cumulative PnL']}
-                            />
-                            <Area
-                                type="monotone"
-                                dataKey="pnl"
-                                stroke="#6366f1"
-                                strokeWidth={3}
-                                fillOpacity={1}
-                                fill="url(#colorPnl)"
-                                animationDuration={1500}
-                            />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                <div className="h-[280px] w-full min-h-[280px]">
+                    {equityData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={equityData}>
+
+                                <defs>
+                                    <linearGradient id="colorPnl" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                                <XAxis
+                                    dataKey="name"
+                                    stroke="#64748b"
+                                    fontSize={10}
+                                    tickLine={false}
+                                    axisLine={false}
+                                />
+                                <YAxis
+                                    stroke="#64748b"
+                                    fontSize={10}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickFormatter={(value) => `${currencySymbol}${value}`}
+                                />
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px' }}
+                                    itemStyle={{ color: '#fff' }}
+                                    formatter={(value: any) => [`${currencySymbol}${value.toFixed(2)}`, 'Cumulative PnL']}
+                                />
+                                <Area
+                                    type="monotone"
+                                    dataKey="pnl"
+                                    stroke="#6366f1"
+                                    strokeWidth={3}
+                                    fillOpacity={1}
+                                    fill="url(#colorPnl)"
+                                    animationDuration={1500}
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-full text-slate-500 text-xs uppercase tracking-widest font-bold opacity-50">No closed trades to analyze</div>
+                    )}
                 </div>
+
             </div>
         </div>
     );
