@@ -110,22 +110,29 @@ const TradeMindChat: React.FC<Props> = ({ trades, displayCurrency }) => {
     };
 
     const saveFeedbackToDB = async (jsonString: string) => {
-        if (!user) return;
         try {
             const cleanJson = jsonString.replace(/```json|```/g, '').trim();
             const data = JSON.parse(cleanJson);
 
-            await supabase.from('user_feedback').insert({
-                user_id: user.id,
+            console.log('Attempting to save feedback:', data);
+
+            const { error } = await supabase.from('user_feedback').insert({
+                user_id: user?.id || null, // Allow NULL for anonymous feedback
                 category: data.issue_type || data.category || 'BUG',
-                description: data.description || `Bug in ${data.page}`,
+                description: data.description || `Bug report via assistant`,
                 urgency: data.urgency || 'medium',
                 contact_email: null,
                 page_url: data.page ? `internal://${data.page}` : window.location.href,
                 user_agent: navigator.userAgent
             });
+
+            if (error) {
+                console.error('Supabase Feedback Error:', error.message, error.details);
+            } else {
+                console.log('✅ Feedback saved successfully to Supabase!');
+            }
         } catch (e) {
-            console.error('Feedback extraction error:', e);
+            console.error('Feedback processing/save error:', e);
         }
     };
 
@@ -275,8 +282,8 @@ ${JSON.stringify(summary, null, 2)}`;
             const assistantContent = data.choices?.[0]?.message?.content || "I'm having trouble responding right now.";
 
             // If in feedback mode and has JSON, save it
-            if (activeTab === 'feedback' && assistantContent.includes('```json')) {
-                const jsonMatch = assistantContent.match(/```json([\s\S]*?)```/);
+            if (activeTab === 'feedback' && (assistantContent.includes('```json') || assistantContent.includes('```'))) {
+                const jsonMatch = assistantContent.match(/```(?:json)?([\s\S]*?)```/);
                 if (jsonMatch) await saveFeedbackToDB(jsonMatch[0]);
             }
 
