@@ -268,12 +268,51 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Status</label>
                 <select
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-indigo-500 transition-colors"
                   value={editingTrade.status}
                   onChange={e => setEditingTrade({ ...editingTrade, status: e.target.value as TradeStatus })}
                 >
                   <option value={TradeStatus.OPEN}>Open</option>
                   <option value={TradeStatus.CLOSED}>Closed</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Direction</label>
+                <select
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-indigo-500 transition-colors"
+                  value={editingTrade.type}
+                  onChange={e => setEditingTrade({ ...editingTrade, type: e.target.value as 'Long' | 'Short' })}
+                >
+                  <option value="Long">Long</option>
+                  <option value="Short">Short</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Stop Loss ({editingTrade.currency === 'USD' ? '$' : '₹'})</label>
+                <input
+                  type="number" step="any"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono"
+                  value={editingTrade.stopLoss || ''}
+                  onChange={e => setEditingTrade({ ...editingTrade, stopLoss: parseFloat(e.target.value) })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Target ({editingTrade.currency === 'USD' ? '$' : '₹'})</label>
+                <input
+                  type="number" step="any"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono"
+                  value={editingTrade.target || ''}
+                  onChange={e => setEditingTrade({ ...editingTrade, target: parseFloat(e.target.value) })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Entry Psychology</label>
+                <select
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-indigo-500 transition-colors"
+                  value={editingTrade.entryEmotion}
+                  onChange={e => setEditingTrade({ ...editingTrade, entryEmotion: e.target.value as Emotion })}
+                >
+                  {Object.values(Emotion).map(emo => <option key={emo} value={emo}>{emo}</option>)}
                 </select>
               </div>
               {editingTrade.status === TradeStatus.CLOSED && (
@@ -297,7 +336,7 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Exit Emotion</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Exit Psychology</label>
                     <select
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono text-xs"
                       value={editingTrade.exitEmotion || Emotion.NEUTRAL}
@@ -308,6 +347,16 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
                   </div>
                 </>
               )}
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Trade Logic & Confluence</label>
+              <textarea
+                rows={3}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm outline-none focus:border-indigo-500 transition-colors"
+                value={editingTrade.notes || ''}
+                onChange={e => setEditingTrade({ ...editingTrade, notes: e.target.value })}
+              />
             </div>
 
             <div className="flex gap-3 mt-8">

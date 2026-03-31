@@ -105,8 +105,13 @@ const TradeJournal: React.FC = () => {
         symbol: updatedTrade.symbol,
         type: updatedTrade.type,
         entry_price: updatedTrade.entryPrice,
+        exit_price: updatedTrade.exitPrice,
         stop_loss: updatedTrade.stopLoss,
         target: updatedTrade.target,
+        status: updatedTrade.status,
+        pnl: updatedTrade.pnl,
+        entry_emotion: updatedTrade.entryEmotion,
+        exit_emotion: updatedTrade.exitEmotion,
         notes: updatedTrade.notes,
         currency: updatedTrade.currency
       })
