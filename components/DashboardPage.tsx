@@ -37,7 +37,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
                     <Analytics trades={trades} displayCurrency={displayCurrency} />
                 </div>
                 <div className="w-full xl:col-span-12">
-                    <Calendar trades={trades} displayCurrency={displayCurrency} />
+                    <Calendar trades={trades} displayCurrency={displayCurrency} onUpdateTrade={onUpdateTrade} />
                 </div>
             </div>
         </div>

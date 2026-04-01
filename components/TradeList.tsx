@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Trade, TradeStatus, Emotion, Currency } from '../types';
+import EditTradeModal from './EditTradeModal';
 
 interface Props {
   trades: Trade[];
@@ -223,148 +224,15 @@ const TradeList: React.FC<Props> = ({ trades, displayCurrency, onCloseTrade, onD
 
       {/* Edit Modal (Currency aware) */}
       {editingTrade && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-          <form onSubmit={handleEditSubmit} className="bg-slate-800 p-8 rounded-2xl border border-slate-700 w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-white">Edit Record</h3>
-              <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-700">
-                {(['USD', 'INR'] as Currency[]).map((curr) => (
-                  <button
-                    key={curr}
-                    type="button"
-                    onClick={() => setEditingTrade({ ...editingTrade, currency: curr })}
-                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${editingTrade.currency === curr ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'
-                      }`}
-                  >
-                    {curr}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Symbol</label>
-                <input
-                  type="text"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-indigo-500 transition-colors"
-                  value={editingTrade.symbol}
-                  onChange={e => setEditingTrade({ ...editingTrade, symbol: e.target.value.toUpperCase() })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Currency</label>
-                <div className="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-400">{editingTrade.currency} Position</div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Entry Price ({editingTrade.currency === 'USD' ? '$' : '₹'})</label>
-                <input
-                  type="number" step="any"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono"
-                  value={editingTrade.entryPrice}
-                  onChange={e => setEditingTrade({ ...editingTrade, entryPrice: parseFloat(e.target.value) })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Status</label>
-                <select
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-indigo-500 transition-colors"
-                  value={editingTrade.status}
-                  onChange={e => setEditingTrade({ ...editingTrade, status: e.target.value as TradeStatus })}
-                >
-                  <option value={TradeStatus.OPEN}>Open</option>
-                  <option value={TradeStatus.CLOSED}>Closed</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Direction</label>
-                <select
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-indigo-500 transition-colors"
-                  value={editingTrade.type}
-                  onChange={e => setEditingTrade({ ...editingTrade, type: e.target.value as 'Long' | 'Short' })}
-                >
-                  <option value="Long">Long</option>
-                  <option value="Short">Short</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Stop Loss ({editingTrade.currency === 'USD' ? '$' : '₹'})</label>
-                <input
-                  type="number" step="any"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono"
-                  value={editingTrade.stopLoss || ''}
-                  onChange={e => setEditingTrade({ ...editingTrade, stopLoss: parseFloat(e.target.value) })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Target ({editingTrade.currency === 'USD' ? '$' : '₹'})</label>
-                <input
-                  type="number" step="any"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono"
-                  value={editingTrade.target || ''}
-                  onChange={e => setEditingTrade({ ...editingTrade, target: parseFloat(e.target.value) })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Entry Psychology</label>
-                <select
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-indigo-500 transition-colors"
-                  value={editingTrade.entryEmotion}
-                  onChange={e => setEditingTrade({ ...editingTrade, entryEmotion: e.target.value as Emotion })}
-                >
-                  {Object.values(Emotion).map(emo => <option key={emo} value={emo}>{emo}</option>)}
-                </select>
-              </div>
-              {editingTrade.status === TradeStatus.CLOSED && (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Exit Price ({editingTrade.currency === 'USD' ? '$' : '₹'})</label>
-                    <input
-                      type="number" step="any"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono"
-                      value={editingTrade.exitPrice || 0}
-                      onChange={e => setEditingTrade({ ...editingTrade, exitPrice: parseFloat(e.target.value) })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">PnL Amount ({editingTrade.currency === 'USD' ? '$' : '₹'})</label>
-                    <input
-                      type="number" step="any"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono"
-                      value={editingTrade.pnl || 0}
-                      onChange={e => setEditingTrade({ ...editingTrade, pnl: parseFloat(e.target.value) })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Exit Psychology</label>
-                    <select
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono text-xs"
-                      value={editingTrade.exitEmotion || Emotion.NEUTRAL}
-                      onChange={e => setEditingTrade({ ...editingTrade, exitEmotion: e.target.value as Emotion })}
-                    >
-                      {Object.values(Emotion).map(emo => <option key={emo} value={emo}>{emo}</option>)}
-                    </select>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Trade Logic & Confluence</label>
-              <textarea
-                rows={3}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm outline-none focus:border-indigo-500 transition-colors"
-                value={editingTrade.notes || ''}
-                onChange={e => setEditingTrade({ ...editingTrade, notes: e.target.value })}
-              />
-            </div>
-
-            <div className="flex gap-3 mt-8">
-              <button type="button" onClick={() => setEditingTrade(null)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-all">Cancel</button>
-              <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all">Save Changes</button>
-            </div>
-          </form>
-        </div>
+        <EditTradeModal
+          trade={editingTrade}
+          onSave={(updatedTrade) => {
+            onUpdateTrade(updatedTrade);
+            setEditingTrade(null);
+          }}
+          onCancel={() => setEditingTrade(null)}
+          onChange={(updatedTrade) => setEditingTrade(updatedTrade)}
+        />
       )}
 
       {/* Exit Modal with Manual PnL Option */}

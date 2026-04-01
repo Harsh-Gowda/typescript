@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Trade, TradeStatus, Currency } from '../types';
+import { Trade, TradeStatus, Currency, Emotion } from '../types';
+import EditTradeModal from './EditTradeModal';
 
 interface Props {
     trades: Trade[];
     displayCurrency: Currency;
+    onUpdateTrade: (trade: Trade) => void;
 }
 
 const CONVERSION_RATE = 83.5;
@@ -14,10 +16,10 @@ const convert = (value: number | undefined, from: Currency, to: Currency) => {
     return to === 'INR' ? value * CONVERSION_RATE : value / CONVERSION_RATE;
 };
 
-const Calendar: React.FC<Props> = ({ trades, displayCurrency }) => {
+const Calendar: React.FC<Props> = ({ trades, displayCurrency, onUpdateTrade }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<number | null>(null);
-
+    const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -206,12 +208,24 @@ const Calendar: React.FC<Props> = ({ trades, displayCurrency }) => {
                                                     {new Date(trade.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className={`text-lg font-bold ${trade.pnl && trade.pnl >= 0 ? 'text-green-400' : 'text-rose-400'}`}>
-                                                    {trade.pnl && trade.pnl >= 0 ? '+' : ''}
-                                                    {currencySymbol}{Math.abs(convert(trade.pnl, trade.currency, displayCurrency)).toLocaleString()}
+                                            <div className="text-right flex flex-col items-end gap-2">
+                                                <div>
+                                                    <div className={`text-lg font-bold ${trade.pnl && trade.pnl >= 0 ? 'text-green-400' : 'text-rose-400'}`}>
+                                                        {trade.pnl && trade.pnl >= 0 ? '+' : ''}
+                                                        {currencySymbol}{Math.abs(convert(trade.pnl, trade.currency, displayCurrency)).toLocaleString()}
+                                                    </div>
+                                                    <div className="text-[10px] text-slate-500 font-medium">REALIZED P&L</div>
                                                 </div>
-                                                <div className="text-[10px] text-slate-500 font-medium">REALIZED P&L</div>
+                                                
+                                                <button 
+                                                    onClick={() => setEditingTrade(trade)}
+                                                    className="p-2 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-lg border border-slate-700 transition-all active:scale-95"
+                                                    title="Quick Edit"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </button>
                                             </div>
                                         </div>
 
@@ -305,8 +319,19 @@ const Calendar: React.FC<Props> = ({ trades, displayCurrency }) => {
                     </div>
                 </div>
             )}
-        </div>
 
+            {editingTrade && (
+                <EditTradeModal
+                    trade={editingTrade}
+                    onSave={(updatedTrade) => {
+                        onUpdateTrade(updatedTrade);
+                        setEditingTrade(null);
+                    }}
+                    onCancel={() => setEditingTrade(null)}
+                    onChange={(updatedTrade) => setEditingTrade(updatedTrade)}
+                />
+            )}
+        </div>
     );
 };
 

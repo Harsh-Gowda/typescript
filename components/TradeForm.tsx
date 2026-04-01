@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Emotion, Trade, Currency } from '../types';
 
 interface Props {
-  onSubmit: (trade: Omit<Trade, 'id' | 'timestamp' | 'status'>) => void;
+  onSubmit: (trade: Omit<Trade, 'id' | 'status'>) => void;
   onCancel: () => void;
   defaultCurrency: Currency;
 }
@@ -17,7 +17,8 @@ const TradeForm: React.FC<Props> = ({ onSubmit, onCancel, defaultCurrency }) => 
     target: 0,
     entryEmotion: Emotion.CONFIDENT,
     notes: '',
-    currency: defaultCurrency
+    currency: defaultCurrency,
+    timestamp: Date.now()
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -71,6 +72,17 @@ const TradeForm: React.FC<Props> = ({ onSubmit, onCancel, defaultCurrency }) => 
             <option value="Short">Short</option>
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-400 mb-1">Trade Date & Time</label>
+        <input 
+          type="datetime-local"
+          required
+          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none text-white text-sm"
+          value={new Date(formData.timestamp - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16)}
+          onChange={e => setFormData({ ...formData, timestamp: new Date(e.target.value).getTime() })}
+        />
       </div>
 
       <div className="grid grid-cols-3 gap-4">

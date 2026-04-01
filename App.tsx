@@ -67,7 +67,7 @@ const TradeJournal: React.FC = () => {
     fetchTrades();
   }, [user]);
 
-  const addTrade = async (trade: Omit<Trade, 'id' | 'timestamp' | 'status'>) => {
+  const addTrade = async (trade: Omit<Trade, 'id' | 'status'>) => {
     if (!user) return;
 
     const newTradeSDK = {
@@ -81,7 +81,7 @@ const TradeJournal: React.FC = () => {
       entry_emotion: trade.entryEmotion,
       notes: trade.notes,
       currency: trade.currency,
-      timestamp: Date.now(),
+      timestamp: trade.timestamp,
       pnl: 0
     };
 
@@ -113,7 +113,8 @@ const TradeJournal: React.FC = () => {
         entry_emotion: updatedTrade.entryEmotion,
         exit_emotion: updatedTrade.exitEmotion,
         notes: updatedTrade.notes,
-        currency: updatedTrade.currency
+        currency: updatedTrade.currency,
+        timestamp: updatedTrade.timestamp
       })
       .eq('id', updatedTrade.id);
 
