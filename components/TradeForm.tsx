@@ -1,14 +1,18 @@
 
 import React, { useState } from 'react';
 import { Emotion, Trade, Currency } from '../types';
+import { DisciplineState } from '../hooks/useDiscipline';
+import { useNavigate } from 'react-router-dom';
 
 interface Props {
   onSubmit: (trade: Omit<Trade, 'id' | 'status'>) => void;
   onCancel: () => void;
   defaultCurrency: Currency;
+  disciplineState?: DisciplineState;
 }
 
-const TradeForm: React.FC<Props> = ({ onSubmit, onCancel, defaultCurrency }) => {
+const TradeForm: React.FC<Props> = ({ onSubmit, onCancel, defaultCurrency, disciplineState }) => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     symbol: '',
     type: 'Long' as 'Long' | 'Short',
@@ -23,13 +27,60 @@ const TradeForm: React.FC<Props> = ({ onSubmit, onCancel, defaultCurrency }) => 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (disciplineState?.isBlocked) return; // hard guard
     onSubmit(formData);
   };
 
   const currencySymbol = formData.currency === 'USD' ? '$' : '₹';
 
+  // ── Block banner when trading is locked ──────────────────────────────────
+  const blockMessages: Record<string, { title: string; body: string }> = {
+    consecutive_losses: {
+      title: `🛑 Trading Blocked — ${disciplineState?.consecutiveLosses} Consecutive Losses`,
+      body: `You've hit your consecutive loss limit (${disciplineState?.rules.maxConsecutiveLosses}). Trading is locked to protect your capital. Take a break, review your trades, and come back tomorrow.`,
+    },
+    max_trades: {
+      title: `🛑 Daily Trade Limit Reached`,
+      body: `You've taken ${disciplineState?.todayTotalCount} trades today (your limit: ${disciplineState?.rules.maxTradesPerDay}). No more entries allowed for today. Close the app and rest.`,
+    },
+    daily_loss_limit: {
+      title: `🛑 Daily Loss Limit Hit`,
+      body: `Your net P&L has exceeded your daily loss limit. Further trading today is blocked. Come back tomorrow with a fresh mindset.`,
+    },
+  };
+
+  const blockInfo = disciplineState?.isBlocked && disciplineState.blockReason
+    ? blockMessages[disciplineState.blockReason]
+    : null;
+
   return (
     <form onSubmit={handleSubmit} className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl space-y-6">
+      {/* ── Block Banner ── */}
+      {blockInfo && (
+        <div className="relative overflow-hidden rounded-2xl border-2 border-rose-500/50 bg-rose-950/40 p-5">
+          <div className="absolute inset-0 bg-rose-500/5 animate-pulse" style={{ animationDuration: '3s' }} />
+          <div className="relative">
+            <p className="text-rose-400 font-black text-base mb-1">{blockInfo.title}</p>
+            <p className="text-rose-200/70 text-sm leading-relaxed">{blockInfo.body}</p>
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/discipline')}
+                className="flex-1 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 font-bold py-2.5 rounded-xl text-sm transition-all"
+              >
+                View Discipline Center
+              </button>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-2xl font-bold text-white">New Position</h2>
         <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-700">
@@ -154,9 +205,10 @@ const TradeForm: React.FC<Props> = ({ onSubmit, onCancel, defaultCurrency }) => 
         </button>
         <button 
           type="submit"
-          className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-500/20"
+          disabled={!!disciplineState?.isBlocked}
+          className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-500/20"
         >
-          Execute Log
+          {disciplineState?.isBlocked ? '⛔ Trading Locked' : 'Execute Log'}
         </button>
       </div>
     </form>

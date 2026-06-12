@@ -3,7 +3,9 @@ import Dashboard from './Dashboard';
 import TradeList from './TradeList';
 import Analytics from './Analytics';
 import Calendar from './Calendar';
+import DisciplineStatus from './DisciplineStatus';
 import { Trade, Currency, Emotion } from '../types';
+import { DisciplineState } from '../hooks/useDiscipline';
 
 interface DashboardPageProps {
     trades: Trade[];
@@ -11,6 +13,7 @@ interface DashboardPageProps {
     onCloseTrade: (id: string, exitPrice: number, exitEmotion: Emotion, manualPnL?: number, exitNotes?: string, exitChartUrl?: string) => Promise<void>;
     onDeleteTrade: (id: string) => Promise<void>;
     onUpdateTrade: (updatedTrade: Trade) => Promise<void>;
+    disciplineState: DisciplineState;
 }
 
 const DashboardPage: React.FC<DashboardPageProps> = ({
@@ -18,10 +21,13 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     displayCurrency,
     onCloseTrade,
     onDeleteTrade,
-    onUpdateTrade
+    onUpdateTrade,
+    disciplineState
 }) => {
     return (
         <div className="w-full space-y-8 lg:space-y-12 animate-in fade-in duration-500">
+            {/* Discipline Status Bar */}
+            <DisciplineStatus state={disciplineState} />
             <Dashboard trades={trades} displayCurrency={displayCurrency} />
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 lg:gap-10">
                 <div className="xl:col-span-8">

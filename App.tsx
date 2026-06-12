@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, NavLink, Navigate } from 'react-router-dom';
 import { Trade, TradeStatus, Emotion, Currency } from './types';
 import DashboardPage from './components/DashboardPage';
@@ -9,6 +9,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Auth from './components/Auth';
 import { supabase } from './lib/supabase';
 import TradeMindChat from './components/TradeMindChat';
+import DisciplineGuard from './components/DisciplineGuard';
+import DisciplinePage from './components/DisciplinePage';
+import { useDiscipline } from './hooks/useDiscipline';
 
 const TradeJournal: React.FC = () => {
   const { signOut, user } = useAuth();
@@ -18,6 +21,26 @@ const TradeJournal: React.FC = () => {
   const [displayCurrency, setDisplayCurrency] = useState<Currency>(() => {
     return (localStorage.getItem('trademind_currency') as Currency) || 'USD';
   });
+
+  // ── Discipline state ──────────────────────────────────────────────────────
+  const disciplineState = useDiscipline(trades);
+  // guardDismissed: user acknowledged the block; checkpointDismissed: user made a choice on the win modal
+  const [guardDismissed, setGuardDismissed] = useState(false);
+  const [checkpointDismissed, setCheckpointDismissed] = useState(false);
+
+  // Re-show guard when block state changes (new loss closes a guard dismiss)
+  useEffect(() => {
+    setGuardDismissed(false);
+  }, [disciplineState.consecutiveLosses, disciplineState.blockReason]);
+
+  useEffect(() => {
+    setCheckpointDismissed(false);
+  }, [disciplineState.consecutiveWins]);
+
+  const showGuard =
+    disciplineState.isBlocked && !guardDismissed;
+  const showCheckpoint =
+    !disciplineState.isBlocked && disciplineState.isProfitCheckpoint && !checkpointDismissed;
 
   // Derived state to keep UI logic consistent with routing
   const isAdding = location.pathname === '/add';
@@ -170,6 +193,21 @@ const TradeJournal: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-[#0f172a] text-slate-200 overflow-hidden">
+      {/* ── Discipline Guard overlay ─────────────────────────────────────── */}
+      {(showGuard || showCheckpoint) && (
+        <DisciplineGuard
+          state={{
+            ...disciplineState,
+            // When checkpoint modal needs to render, override isBlocked so guard shows the right modal
+            isBlocked: showGuard,
+            isProfitCheckpoint: showCheckpoint,
+          }}
+          onDismissBlock={() => setGuardDismissed(true)}
+          onOverrideBlock={() => setGuardDismissed(true)}
+          onStopTrading={() => { setCheckpointDismissed(true); navigate('/'); }}
+          onContinueTrading={() => setCheckpointDismissed(true)}
+        />
+      )}
       {/* Sidebar Navigation - Desktop Only */}
       <aside className="hidden lg:flex w-72 flex-shrink-0 bg-slate-900/50 border-r border-slate-800/50 backdrop-blur-xl flex-col transition-all duration-500 z-40">
         {/* Logo Section */}
@@ -230,6 +268,30 @@ const TradeJournal: React.FC = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
             </div>
             <span className="text-[11px] font-bold uppercase tracking-wider">Market Calendar</span>
+          </NavLink>
+
+          {/* Discipline nav link */}
+          <NavLink
+            to="/discipline"
+            className={({ isActive }) => `flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 cursor-pointer group ${isActive ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/10' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'}`}
+          >
+            <div className="shrink-0 group-hover:scale-110 transition-transform relative">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+              {disciplineState.isBlocked && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+              )}
+            </div>
+            <span className="text-[11px] font-bold uppercase tracking-wider">Discipline</span>
+            {disciplineState.isBlocked && (
+              <span className="ml-auto text-[9px] font-black text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-lg uppercase tracking-wide">Blocked</span>
+            )}
+            {!disciplineState.isBlocked && disciplineState.disciplineScore > 0 && (
+              <span className={`ml-auto text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-wide ${
+                disciplineState.disciplineScore >= 80 ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+                : disciplineState.disciplineScore >= 50 ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+                : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
+              }`}>{disciplineState.disciplineScore}</span>
+            )}
           </NavLink>
         </nav>
 
@@ -322,9 +384,11 @@ const TradeJournal: React.FC = () => {
                 onCloseTrade={closeTrade}
                 onDeleteTrade={deleteTrade}
                 onUpdateTrade={updateTrade}
+                disciplineState={disciplineState}
               />
             } />
             <Route path="/market" element={<MarketCalendar />} />
+            <Route path="/discipline" element={<DisciplinePage trades={trades} />} />
             <Route path="/add" element={
               <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
                 <div className="flex justify-between items-center bg-slate-900/40 p-4 lg:p-6 rounded-2xl lg:rounded-3xl border border-slate-700/30 backdrop-blur-xl">
@@ -337,6 +401,7 @@ const TradeJournal: React.FC = () => {
                   onSubmit={addTrade}
                   onCancel={() => navigate('/')}
                   defaultCurrency={displayCurrency}
+                  disciplineState={disciplineState}
                 />
               </div>
             } />
@@ -345,14 +410,26 @@ const TradeJournal: React.FC = () => {
         </div>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900/80 backdrop-blur-2xl border-t border-slate-800/50 px-6 py-3 flex items-center justify-between z-40">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900/80 backdrop-blur-2xl border-t border-slate-800/50 px-4 py-3 flex items-center justify-between z-40">
           <NavLink
             to="/"
             end
             className={({ isActive }) => `flex flex-col items-center gap-1 ${isActive && !isAdding ? 'text-indigo-400' : 'text-slate-500'}`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-            <span className="text-[10px] font-black uppercase tracking-tighter">Dashboard</span>
+            <span className="text-[9px] font-black uppercase tracking-tighter">Dashboard</span>
+          </NavLink>
+
+          {/* Discipline mobile nav */}
+          <NavLink
+            to="/discipline"
+            className={({ isActive }) => `flex flex-col items-center gap-1 relative ${isActive ? 'text-indigo-400' : 'text-slate-500'}`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+            {disciplineState.isBlocked && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+            )}
+            <span className="text-[9px] font-black uppercase tracking-tighter">Discipline</span>
           </NavLink>
 
           <div className="relative -mt-12">
@@ -369,7 +446,7 @@ const TradeJournal: React.FC = () => {
             className={({ isActive }) => `flex flex-col items-center gap-1 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-            <span className="text-[10px] font-black uppercase tracking-tighter">Events</span>
+            <span className="text-[9px] font-black uppercase tracking-tighter">Events</span>
           </NavLink>
         </nav>
       </main>
