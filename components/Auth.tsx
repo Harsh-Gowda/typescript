@@ -56,7 +56,7 @@ const Auth: React.FC = () => {
                             </div>
                         </div>
                         <h1 className="text-4xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent tracking-tight mb-3">
-                            TradeMind
+                            Tradink
                         </h1>
                         <h2 className="text-lg text-slate-300 font-bold uppercase tracking-[0.2em]">
                             {isSignUp ? 'New Era' : 'Back to Edge'}

@@ -8,7 +8,7 @@ import TradeForm from './components/TradeForm';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Auth from './components/Auth';
 import { supabase } from './lib/supabase';
-import TradeMindChat from './components/TradeMindChat';
+import TradinkChat from './components/TradinkChat';
 import DisciplineGuard from './components/DisciplineGuard';
 import DisciplinePage from './components/DisciplinePage';
 import { useDiscipline } from './hooks/useDiscipline';
@@ -222,7 +222,7 @@ const TradeJournal: React.FC = () => {
           </div>
           <div>
             <h1 className="text-xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent tracking-tight">
-              TradeMind
+              Tradink
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -314,8 +314,9 @@ const TradeJournal: React.FC = () => {
             </div>
             <button
               onClick={() => signOut()}
-              className="p-2 text-slate-500 hover:text-rose-400 transition-colors" title="Sign Out">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7" /></svg>
+              className="flex items-center gap-2 px-3 py-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded-xl border border-rose-500/20 transition-all duration-300" title="Sign Out">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7" /></svg>
+              <span className="text-[10px] font-black tracking-widest uppercase">Sign Out</span>
             </button>
           </div>
 
@@ -345,7 +346,7 @@ const TradeJournal: React.FC = () => {
               </svg>
             </div>
             <div>
-              <h1 className="text-lg font-black text-white tracking-tight">TradeMind</h1>
+              <h1 className="text-lg font-black text-white tracking-tight">Tradink</h1>
               <div className="flex items-center gap-1.5">
                 <span className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></span>
                 <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em]">Harsh Design</span>
@@ -369,8 +370,9 @@ const TradeJournal: React.FC = () => {
             </div>
             <button
               onClick={() => signOut()}
-              className="p-2 text-slate-500 hover:text-rose-400 bg-slate-800/50 rounded-lg border border-slate-700/50">
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded-lg border border-rose-500/20 transition-all duration-300 shadow-lg shadow-rose-500/10">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7" /></svg>
+              <span className="text-[10px] font-black uppercase tracking-wider">Log Out</span>
             </button>
           </div>
         </header>
@@ -451,8 +453,8 @@ const TradeJournal: React.FC = () => {
         </nav>
       </main>
 
-      {/* TradeMind AI Chatbot */}
-      <TradeMindChat trades={trades} displayCurrency={displayCurrency} />
+      {/* Tradink AI Chatbot */}
+      <TradinkChat trades={trades} displayCurrency={displayCurrency} />
     </div>
   );
 };
