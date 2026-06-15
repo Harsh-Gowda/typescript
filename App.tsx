@@ -8,7 +8,7 @@ import TradeForm from './components/TradeForm';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Auth from './components/Auth';
 import { supabase } from './lib/supabase';
-import TradinkChat from './components/TradinkChat';
+import TradinkChat from './components/TradeMindChat';
 import DisciplineGuard from './components/DisciplineGuard';
 import DisciplinePage from './components/DisciplinePage';
 import { useDiscipline } from './hooks/useDiscipline';

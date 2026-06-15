@@ -15,7 +15,7 @@ interface Message {
     timestamp: number;
 }
 
-const TRADEMIND_SYSTEM_PROMPT = `You are TradeMind, an elite trading psychology coach. Your role is to identify destructive patterns, explain the psychology behind mistakes, and prescribe ONE specific mental fix.
+const TRADINK_SYSTEM_PROMPT = `You are Tradink, an elite trading psychology coach. Your role is to identify destructive patterns, explain the psychology behind mistakes, and prescribe ONE specific mental fix.
 
 ## OUTPUT CONSTRAINTS
 - Limit response to 2-3 lines total.
@@ -30,14 +30,14 @@ const TRADEMIND_SYSTEM_PROMPT = `You are TradeMind, an elite trading psychology 
 - Financial predictions or trade recommendations.
 - Hindsight "You should have" statements.
 - Bold text or list formatting of any kind.`;
-const FEEDBACK_SYSTEM_PROMPT = `You are TradeMind's Quick-Report Assistant. Your goal is to collect bug reports in 4 clicks + 1 line. No small talk.
+const FEEDBACK_SYSTEM_PROMPT = `You are Tradink's Quick-Report Assistant. Your goal is to collect bug reports in 4 clicks + 1 line. No small talk.
 
 ## STEP-BY-STEP FLOW
 1. **Location**: "Where is the error? [Journal Entry] [Dashboard] [AI Chat] [Charts] [Login] [Other]"
 2. **Urgency**: "How urgent? [🟢 Low] [🟡 Medium] [🔴 High]"
 3. **Major Issues**: "Pick the issue: [Page Not Loading] [Data Not Saving] [Button Not Working] [Wrong Calculation] [Slow/Laggy] [Text Cut Off] [Can't Login] [AI Wrong Response] [Other - I'll type]"
 4. **Description**: If they picked "Other", ask for one line. Otherwise, make it optional.
-5. **Close**: "✅ Reported! Harsh will fix this within 24hrs. Thanks for helping TradeMind improve 🚀"
+5. **Close**: "✅ Reported! Harsh will fix this within 24hrs. Thanks for helping Tradink improve 🚀"
 
 ## DATA CAPTURE
 Once urgency and issue are known, provide JSON:
@@ -58,7 +58,7 @@ Once urgency and issue are known, provide JSON:
 ## POWER USER SHORTCUT
 If user types "bug [location] [issue]" (e.g., "bug dashboard not loading"), capture all data immediately and reply: "✅ Got it! Reported."`;
 
-const TradeMindChat: React.FC<Props> = ({ trades, displayCurrency }) => {
+const TradinkChat: React.FC<Props> = ({ trades, displayCurrency }) => {
     const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'coach' | 'feedback'>('coach');
@@ -226,7 +226,7 @@ ${JSON.stringify(summary, null, 2)}`;
             }
 
             const prompt = activeTab === 'coach'
-                ? TRADEMIND_SYSTEM_PROMPT + '\n\n## CURRENT TRADING DATA\n' + getTradeContext()
+                ? TRADINK_SYSTEM_PROMPT + '\n\n## CURRENT TRADING DATA\n' + getTradeContext()
                 : FEEDBACK_SYSTEM_PROMPT;
 
             const chatMessages = [
@@ -297,7 +297,7 @@ ${JSON.stringify(summary, null, 2)}`;
 
             setMessagesProxy(prev => [...prev, assistantMessage]);
         } catch (error: any) {
-            console.error('TradeMind AI Error:', error);
+            console.error('Tradink AI Error:', error);
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
@@ -338,7 +338,7 @@ ${JSON.stringify(summary, null, 2)}`;
                                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-900 animate-pulse"></div>
                             </div>
                             <div>
-                                <h3 className="text-sm font-black text-white tracking-tight">TradeMind</h3>
+                                <h3 className="text-sm font-black text-white tracking-tight">Tradink</h3>
                                 <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
                                     {activeTab === 'coach' ? 'Psychology Coach' : 'Feedback Assistant'}
                                 </p>
@@ -387,7 +387,7 @@ ${JSON.stringify(summary, null, 2)}`;
                                 </svg>
                             </div>
                             <h4 className="text-white font-bold text-sm mb-2">
-                                {activeTab === 'coach' ? 'Welcome to TradeMind' : 'Quick Feedback'}
+                                {activeTab === 'coach' ? 'Welcome to Tradink' : 'Quick Feedback'}
                             </h4>
                             {activeTab === 'coach' && (
                                 <p className="text-slate-500 text-xs leading-relaxed max-w-[250px] mx-auto">
@@ -584,7 +584,7 @@ ${JSON.stringify(summary, null, 2)}`;
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
                         </span>
-                        <span>Need a strategy review? Ask TradeMind.</span>
+                        <span>Need a strategy review? Ask Tradink.</span>
                     </div>
                 </div>
 
@@ -608,4 +608,4 @@ ${JSON.stringify(summary, null, 2)}`;
     );
 };
 
-export default TradeMindChat;
+export default TradinkChat;
