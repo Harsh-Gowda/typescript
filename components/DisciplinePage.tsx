@@ -117,7 +117,8 @@ const RuleEditor: React.FC<{ onSave: (r: DisciplineRule) => void }> = ({ onSave 
     description: string,
     min: number,
     max: number,
-    suffix = ''
+    suffix = '',
+    isInput = false
   ) => (
     <div className="flex items-center justify-between gap-4 py-4 border-b border-slate-700/30 last:border-0">
       <div className="flex-1">
@@ -125,17 +126,42 @@ const RuleEditor: React.FC<{ onSave: (r: DisciplineRule) => void }> = ({ onSave 
         <p className="text-xs text-slate-500 mt-0.5">{description}</p>
       </div>
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => setRules(r => ({ ...r, [key]: Math.max(min, Number(r[key]) - 1) }))}
-          className="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black transition-all flex items-center justify-center"
-        >−</button>
-        <span className="text-xl font-black text-white w-12 text-center">
-          {rules[key]}{suffix}
-        </span>
-        <button
-          onClick={() => setRules(r => ({ ...r, [key]: Math.min(max, Number(r[key]) + 1) }))}
-          className="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black transition-all flex items-center justify-center"
-        >+</button>
+        {isInput ? (
+          <div className="relative flex items-center">
+            <input
+              type="number"
+              min={min}
+              max={max}
+              value={rules[key]}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setRules(r => ({ ...r, [key]: val }));
+              }}
+              onBlur={(e) => {
+                let val = Number(e.target.value);
+                if (val < min) val = min;
+                if (val > max) val = max;
+                setRules(r => ({ ...r, [key]: val }));
+              }}
+              className="w-24 bg-slate-800/50 border border-slate-700/50 rounded-xl px-3 py-2 text-white font-black outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-center"
+            />
+            {suffix && <span className="absolute right-3 text-slate-400 font-bold">{suffix}</span>}
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={() => setRules(r => ({ ...r, [key]: Math.max(min, Number(r[key]) - 1) }))}
+              className="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black transition-all flex items-center justify-center"
+            >−</button>
+            <span className="text-xl font-black text-white w-12 text-center">
+              {rules[key]}{suffix}
+            </span>
+            <button
+              onClick={() => setRules(r => ({ ...r, [key]: Math.min(max, Number(r[key]) + 1) }))}
+              className="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black transition-all flex items-center justify-center"
+            >+</button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -167,7 +193,7 @@ const RuleEditor: React.FC<{ onSave: (r: DisciplineRule) => void }> = ({ onSave 
         {field('Max Consecutive Losses', 'maxConsecutiveLosses', 'Trading will be blocked after this many losses in a row.', 1, 10)}
         {field('Win Streak Checkpoint', 'winCheckpointCount', 'A checkpoint appears after this many consecutive wins.', 1, 10)}
         {field('Max Trades Per Day', 'maxTradesPerDay', 'No new trades allowed beyond this daily limit.', 1, 30)}
-        {field('Max Daily Loss (₹/$)', 'maxDailyLossAmount', 'Set to 0 to disable. Blocks trading if net loss exceeds this.', 0, 100000)}
+        {field('Max Daily Loss (₹/$)', 'maxDailyLossAmount', 'Set to 0 to disable. Blocks trading if net loss exceeds this.', 0, 100000, '', true)}
       </div>
 
       <button
