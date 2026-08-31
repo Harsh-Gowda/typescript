@@ -4,6 +4,7 @@ import TradeList from './TradeList';
 import Analytics from './Analytics';
 import Calendar from './Calendar';
 import DisciplineStatus from './DisciplineStatus';
+import OptionsSummaryCard from './OptionsSummaryCard';
 import { Trade, Currency, Emotion } from '../types';
 import { DisciplineState } from '../hooks/useDiscipline';
 
@@ -39,7 +40,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
                         onUpdateTrade={onUpdateTrade}
                     />
                 </div>
-                <div className="xl:col-span-4">
+                <div className="xl:col-span-4 space-y-6">
+                    <OptionsSummaryCard />
                     <Analytics trades={trades} displayCurrency={displayCurrency} />
                 </div>
                 <div className="w-full xl:col-span-12">

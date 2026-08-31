@@ -11,6 +11,7 @@ import { supabase } from './lib/supabase';
 import TradinkChat from './components/TradeMindChat';
 import DisciplineGuard from './components/DisciplineGuard';
 import DisciplinePage from './components/DisciplinePage';
+import OptionsPage from './components/OptionsPage';
 import { useDiscipline } from './hooks/useDiscipline';
 
 const TradeJournal: React.FC = () => {
@@ -293,6 +294,21 @@ const TradeJournal: React.FC = () => {
               }`}>{disciplineState.disciplineScore}</span>
             )}
           </NavLink>
+
+          {/* Options Chain nav link */}
+          <div className="px-4 mt-4 mb-2">
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Indian Market</p>
+          </div>
+          <NavLink
+            to="/options"
+            className={({ isActive }) => `flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 cursor-pointer group ${isActive ? 'bg-violet-600/10 text-violet-400 border border-violet-500/10' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'}`}
+          >
+            <div className="shrink-0 group-hover:scale-110 transition-transform">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            </div>
+            <span className="text-[11px] font-bold uppercase tracking-wider">Options Chain</span>
+            <span className="ml-auto text-[8px] font-black text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 rounded-md uppercase tracking-wide">CE/PE</span>
+          </NavLink>
         </nav>
 
         {/* Sidebar Footer */}
@@ -391,6 +407,7 @@ const TradeJournal: React.FC = () => {
             } />
             <Route path="/market" element={<MarketCalendar />} />
             <Route path="/discipline" element={<DisciplinePage trades={trades} />} />
+            <Route path="/options" element={<OptionsPage />} />
             <Route path="/add" element={
               <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
                 <div className="flex justify-between items-center bg-slate-900/40 p-4 lg:p-6 rounded-2xl lg:rounded-3xl border border-slate-700/30 backdrop-blur-xl">
@@ -449,6 +466,14 @@ const TradeJournal: React.FC = () => {
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
             <span className="text-[9px] font-black uppercase tracking-tighter">Events</span>
+          </NavLink>
+
+          <NavLink
+            to="/options"
+            className={({ isActive }) => `flex flex-col items-center gap-1 ${isActive ? 'text-violet-400' : 'text-slate-500'}`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            <span className="text-[9px] font-black uppercase tracking-tighter">Options</span>
           </NavLink>
         </nav>
       </main>
