@@ -441,7 +441,7 @@ const OpenTradeRow: React.FC<{ trade: OptionTrade; onClose: (t: OptionTrade) => 
 
 // ─── Closed Trade Grid Card ──────────────────────────────────────────────────
 
-const ClosedTradeCard: React.FC<{ trade: OptionTrade; onDelete: (id: string) => void }> = ({ trade, onDelete }) => {
+const ClosedTradeCard: React.FC<{ trade: OptionTrade; onDelete: (id: string) => void; onEdit: (t: OptionTrade) => void }> = ({ trade, onDelete, onEdit }) => {
   const [expanded, setExpanded] = React.useState(false);
   const symbol = trade.underlying !== 'CUSTOM' ? trade.underlying : (trade.customSymbol || 'CUSTOM');
   const pnl = trade.netPnl || 0;
@@ -458,12 +458,8 @@ const ClosedTradeCard: React.FC<{ trade: OptionTrade; onDelete: (id: string) => 
       >
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-1.5">
-            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${trade.optionType === 'CE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-              {trade.optionType}
-            </span>
-            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${trade.side === 'BUY' ? 'bg-blue-500/10 text-blue-400' : 'bg-orange-500/10 text-orange-400'}`}>
-              {trade.side}
-            </span>
+            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${trade.optionType === 'CE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>{trade.optionType}</span>
+            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${trade.side === 'BUY' ? 'bg-blue-500/10 text-blue-400' : 'bg-orange-500/10 text-orange-400'}`}>{trade.side}</span>
           </div>
           <span className="text-[8px] text-slate-600">{new Date(trade.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>
         </div>
@@ -479,7 +475,7 @@ const ClosedTradeCard: React.FC<{ trade: OptionTrade; onDelete: (id: string) => 
       </div>
 
       {expanded && (
-        <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-slate-900 border border-slate-700 rounded-xl p-3 shadow-2xl min-w-[210px]" onClick={e => e.stopPropagation()}>
+        <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-slate-900 border border-slate-700 rounded-xl p-3 shadow-2xl min-w-[220px]" onClick={e => e.stopPropagation()}>
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs"><span className="text-slate-500">Gross P&L</span><span className={isProfit ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{fmt(trade.grossPnl || 0)}</span></div>
             <div className="flex justify-between text-xs"><span className="text-slate-500">Brokerage</span><span className="text-amber-400">-{fmt(trade.brokerage || 0)}</span></div>
@@ -491,8 +487,10 @@ const ClosedTradeCard: React.FC<{ trade: OptionTrade; onDelete: (id: string) => 
             {trade.exitEmotion && <div className="flex justify-between text-xs"><span className="text-slate-500">Exit Emotion</span><span className="text-purple-400">{emotionEmoji[trade.exitEmotion]} {trade.exitEmotion}</span></div>}
             {trade.notes && <p className="text-[10px] text-slate-500 italic border-t border-slate-800 pt-1.5">{trade.notes}</p>}
             <div className="flex gap-2 pt-1">
-              <button onClick={() => setExpanded(false)} className="flex-1 py-1.5 bg-slate-800 text-slate-400 text-[10px] font-black rounded-lg hover:bg-slate-700 transition-all">Close</button>
-              <button onClick={() => onDelete(trade.id)} className="py-1.5 px-3 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white text-[10px] font-black rounded-lg transition-all border border-rose-500/20">Delete</button>
+              <button onClick={() => { setExpanded(false); onEdit(trade); }} className="flex-1 py-1.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white text-[10px] font-black rounded-lg transition-all border border-indigo-500/20">
+                ✏️ Edit
+              </button>
+              <button onClick={() => onDelete(trade.id)} className="flex-1 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white text-[10px] font-black rounded-lg transition-all border border-rose-500/20">Delete</button>
             </div>
           </div>
         </div>
@@ -503,7 +501,7 @@ const ClosedTradeCard: React.FC<{ trade: OptionTrade; onDelete: (id: string) => 
 
 // ─── Closed Trade List Row ───────────────────────────────────────────────────
 
-const ClosedTradeListRow: React.FC<{ trade: OptionTrade; onDelete: (id: string) => void }> = ({ trade, onDelete }) => {
+const ClosedTradeListRow: React.FC<{ trade: OptionTrade; onDelete: (id: string) => void; onEdit: (t: OptionTrade) => void }> = ({ trade, onDelete, onEdit }) => {
   const [expanded, setExpanded] = React.useState(false);
   const symbol = trade.underlying !== 'CUSTOM' ? trade.underlying : (trade.customSymbol || 'CUSTOM');
   const pnl = trade.netPnl || 0;
@@ -545,12 +543,19 @@ const ClosedTradeListRow: React.FC<{ trade: OptionTrade; onDelete: (id: string) 
             <div><p className="text-[9px] text-slate-500 uppercase">ROI</p><p className={`text-xs font-bold ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>{(trade.roi || 0).toFixed(2)}%</p></div>
             <div><p className="text-[9px] text-slate-500 uppercase">Capital Used</p><p className="text-xs text-indigo-400">{fmt(trade.entryValue)}</p></div>
           </div>
-          <div className="flex items-center gap-3 mb-2 text-[10px] text-slate-500">
+          <div className="flex items-center gap-3 mb-3 text-[10px] text-slate-500">
             <span>Entry: {emotionEmoji[trade.entryEmotion]} {trade.entryEmotion}</span>
             {trade.exitEmotion && <span>Exit: {emotionEmoji[trade.exitEmotion]} {trade.exitEmotion}</span>}
+            {trade.strategy && <span className="text-violet-400 ml-auto">{trade.strategy}</span>}
           </div>
-          {trade.notes && <p className="text-[10px] text-slate-500 italic bg-slate-800/40 rounded-lg p-2 mb-2">{trade.notes}</p>}
-          <div className="flex justify-end">
+          {trade.notes && <p className="text-[10px] text-slate-500 italic bg-slate-800/40 rounded-lg p-2 mb-3">{trade.notes}</p>}
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => { setExpanded(false); onEdit(trade); }}
+              className="px-3 py-1.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white text-[10px] font-black rounded-lg transition-all border border-indigo-500/20"
+            >
+              ✏️ Edit
+            </button>
             <button onClick={() => onDelete(trade.id)} className="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white text-[10px] font-black rounded-lg transition-all border border-rose-500/20">Delete</button>
           </div>
         </div>
@@ -1085,6 +1090,7 @@ const OptionsPage: React.FC = () => {
   const [filter, setFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'CE' | 'PE'>('ALL');
   const [underlyingFilter, setUnderlyingFilter] = useState<string>('ALL');
+  const [editingTrade, setEditingTrade] = useState<OptionTrade | null>(null);
 
   const fetchTrades = async () => {
     if (!user) return;
@@ -1198,6 +1204,32 @@ const OptionsPage: React.FC = () => {
     fetchTrades();
   };
 
+  const handleEditTrade = async (updated: OptionTrade) => {
+    const { error } = await supabase.from('option_trades').update({
+      entry_premium: updated.entryPremium,
+      exit_premium: updated.exitPremium,
+      lots: updated.lots,
+      lot_size: updated.lotSize,
+      total_qty: updated.totalQty,
+      entry_value: updated.entryValue,
+      strike_price: updated.strikePrice,
+      expiry_date: updated.expiryDate,
+      strategy: updated.strategy || null,
+      notes: updated.notes || null,
+      entry_emotion: updated.entryEmotion,
+      exit_emotion: updated.exitEmotion || null,
+      gross_pnl: updated.grossPnl,
+      net_pnl: updated.netPnl,
+      roi: updated.roi,
+    }).eq('id', updated.id);
+    if (!error) {
+      setEditingTrade(null);
+      fetchTrades();
+    } else {
+      alert('Failed to save changes: ' + error.message);
+    }
+  };
+
   const stats = calcOptionStats(trades);
   const uniqueUnderlyings = ['ALL', ...Array.from(new Set(trades.map(t => t.underlying !== 'CUSTOM' ? t.underlying : (t.customSymbol || 'CUSTOM'))))];
 
@@ -1211,6 +1243,15 @@ const OptionsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Edit Modal */}
+      {editingTrade && (
+        <EditOptionModal
+          trade={editingTrade}
+          onSave={handleEditTrade}
+          onCancel={() => setEditingTrade(null)}
+        />
+      )}
+
       {/* Close Modal */}
       {closingTrade && (
         <CloseModal
@@ -1331,7 +1372,7 @@ const OptionsPage: React.FC = () => {
 
       {/* Options Calendar + Graph + Closed Journal — always at bottom */}
       {trades.length > 0 && (
-        <OptionsCalendar trades={trades} onDelete={handleDeleteTrade} />
+        <OptionsCalendar trades={trades} onDelete={handleDeleteTrade} onEdit={setEditingTrade} />
       )}
     </div>
   );
