@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   OptionTrade, OptionType, OptionSide, OptionUnderlying,
   TradeStatus, Emotion, LOT_SIZES, BROKERAGE_PER_ORDER, STT_RATE, OptionStats
@@ -816,64 +816,26 @@ const OptionsPage: React.FC = () => {
             <div className="space-y-3">
               <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">🟡 Open Positions ({filtered.filter(t => t.status === TradeStatus.OPEN).length})</p>
               {filtered.filter(t => t.status === TradeStatus.OPEN).map(trade => (
-                <OpenTradeRow
-                  key={trade.id}
-                  trade={trade}
-                  onClose={setClosingTrade}
-                  onDelete={handleDeleteTrade}
-                />
+                <OpenTradeRow key={trade.id} trade={trade} onClose={setClosingTrade} onDelete={handleDeleteTrade} />
               ))}
             </div>
           )}
 
-          {/* Closed Trades — Grid / List toggle */}
-          {filtered.filter(t => t.status === TradeStatus.CLOSED).length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  📋 Closed Journal ({filtered.filter(t => t.status === TradeStatus.CLOSED).length})
-                </p>
-                <div className="flex gap-1 bg-slate-900/60 border border-slate-700/50 rounded-xl p-1">
-                  <button
-                    onClick={() => setClosedViewMode('grid')}
-                    className={`p-2 rounded-lg transition-all ${closedViewMode === 'grid' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-                    title="Grid view"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
-                      <rect x="0" y="0" width="6" height="6" rx="1" />
-                      <rect x="10" y="0" width="6" height="6" rx="1" />
-                      <rect x="0" y="10" width="6" height="6" rx="1" />
-                      <rect x="10" y="10" width="6" height="6" rx="1" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => setClosedViewMode('list')}
-                    className={`p-2 rounded-lg transition-all ${closedViewMode === 'list' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-                    title="List view"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              {closedViewMode === 'grid' ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                  {filtered.filter(t => t.status === TradeStatus.CLOSED).map(trade => (
-                    <ClosedTradeCard key={trade.id} trade={trade} onDelete={handleDeleteTrade} />
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {filtered.filter(t => t.status === TradeStatus.CLOSED).map(trade => (
-                    <ClosedTradeListRow key={trade.id} trade={trade} onDelete={handleDeleteTrade} />
-                  ))}
-                </div>
-              )}
+          {/* Closed Trades (shown here only when filter is specifically CLOSED or ALL with type/underlying filter) */}
+          {filtered.filter(t => t.status === TradeStatus.CLOSED).length > 0 && filter === 'CLOSED' && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtered Closed ({filtered.filter(t => t.status === TradeStatus.CLOSED).length})</p>
+              {filtered.filter(t => t.status === TradeStatus.CLOSED).map(trade => (
+                <ClosedTradeListRow key={trade.id} trade={trade} onDelete={handleDeleteTrade} />
+              ))}
             </div>
           )}
         </div>
+      )}
+
+      {/* Options Calendar + Graph + Closed Journal — always at bottom */}
+      {trades.length > 0 && (
+        <OptionsCalendar trades={trades} onDelete={handleDeleteTrade} />
       )}
     </div>
   );
