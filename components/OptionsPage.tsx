@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   OptionTrade, OptionType, OptionSide, OptionUnderlying,
   TradeStatus, Emotion, LOT_SIZES, BROKERAGE_PER_ORDER, STT_RATE, OptionStats
@@ -558,99 +559,296 @@ const ClosedTradeListRow: React.FC<{ trade: OptionTrade; onDelete: (id: string) 
   );
 };
 
-// ─── Options P&L Graph (Cumulative) ─────────────────────────────────────────
+// ─── Edit Option Modal ───────────────────────────────────────────────────────
 
-const OptionsPnLGraph: React.FC<{ trades: OptionTrade[]; year: number; month: number }> = ({ trades, year, month }) => {
-  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+interface EditOptionModalProps {
+  trade: OptionTrade;
+  onSave: (updated: OptionTrade) => void;
+  onCancel: () => void;
+}
 
-  const dailyPnl = useMemo(() => {
-    const map: Record<number, number> = {};
-    trades.forEach(t => {
-      if (t.status !== TradeStatus.CLOSED) return;
-      const d = new Date(t.timestamp);
-      if (d.getFullYear() !== year || d.getMonth() !== month) return;
-      const day = d.getDate();
-      map[day] = (map[day] || 0) + (t.netPnl || 0);
-    });
-    return map;
-  }, [trades, year, month]);
+const EditOptionModal: React.FC<EditOptionModalProps> = ({ trade, onSave, onCancel }) => {
+  const [entryPremium, setEntryPremium] = useState(String(trade.entryPremium));
+  const [exitPremium, setExitPremium] = useState(String(trade.exitPremium ?? ''));
+  const [lots, setLots] = useState(String(trade.lots));
+  const [lotSize, setLotSize] = useState(String(trade.lotSize));
+  const [strikePrice, setStrikePrice] = useState(String(trade.strikePrice));
+  const [expiryDate, setExpiryDate] = useState(trade.expiryDate);
+  const [strategy, setStrategy] = useState(trade.strategy || '');
+  const [notes, setNotes] = useState(trade.notes || '');
+  const [entryEmotion, setEntryEmotion] = useState<Emotion>(trade.entryEmotion);
+  const [exitEmotion, setExitEmotion] = useState<Emotion | undefined>(trade.exitEmotion);
 
-  const series: { day: number; cumPnl: number; dailyPnl: number }[] = [];
-  let cum = 0;
-  for (let d = 1; d <= daysInMonth; d++) {
-    if (dailyPnl[d] !== undefined) {
-      cum += dailyPnl[d];
-      series.push({ day: d, cumPnl: cum, dailyPnl: dailyPnl[d] });
+  const STRATEGIES = ['Scalp','Swing','Hedged','Straddle','Strangle','Iron Condor','Directional'];
+
+  const handleSave = () => {
+    const ep = parseFloat(entryPremium) || trade.entryPremium;
+    const xp = exitPremium ? parseFloat(exitPremium) : trade.exitPremium;
+    const l = parseInt(lots) || trade.lots;
+    const ls = parseInt(lotSize) || trade.lotSize;
+    const totalQty = l * ls;
+    const entryValue = ep * totalQty;
+
+    let grossPnl = trade.grossPnl;
+    let netPnl = trade.netPnl;
+    let roi = trade.roi;
+
+    if (xp !== undefined) {
+      grossPnl = trade.side === 'BUY' ? (xp - ep) * totalQty : (ep - xp) * totalQty;
+      const brokerage = BROKERAGE_PER_ORDER * 2;
+      const sttBase = trade.side === 'BUY' ? xp * totalQty : ep * totalQty;
+      const stt = parseFloat((sttBase * STT_RATE).toFixed(2));
+      const turnover = (ep + xp) * totalQty;
+      const otherCharges = parseFloat(((turnover * 0.0005) + (brokerage * 0.18) + (turnover * 0.000001)).toFixed(2));
+      netPnl = parseFloat((grossPnl - brokerage - stt - otherCharges).toFixed(2));
+      roi = entryValue > 0 ? parseFloat(((netPnl / entryValue) * 100).toFixed(2)) : 0;
     }
-  }
 
-  if (series.length === 0) return null;
-
-  const allVals = series.map(s => s.cumPnl);
-  const minVal = Math.min(0, ...allVals);
-  const maxVal = Math.max(0, ...allVals);
-  const range = maxVal - minVal || 1;
-  const W = 700, H = 140, PAD = 16;
-  const chartW = W - PAD * 2;
-  const chartH = H - PAD * 2;
-
-  const toX = (i: number) => PAD + (i / Math.max(series.length - 1, 1)) * chartW;
-  const toY = (val: number) => PAD + chartH - ((val - minVal) / range) * chartH;
-  const zeroY = toY(0);
-
-  const pts = series.map((s, i) => `${toX(i).toFixed(1)},${toY(s.cumPnl).toFixed(1)}`).join(' L ');
-  const linePath = `M ${pts}`;
-  const fillPath = `M ${toX(0)},${zeroY.toFixed(1)} L ${pts} L ${toX(series.length - 1).toFixed(1)},${zeroY.toFixed(1)} Z`;
-
-  const lastPnl = series[series.length - 1].cumPnl;
-  const isPositive = lastPnl >= 0;
+    onSave({
+      ...trade,
+      entryPremium: ep,
+      exitPremium: xp,
+      lots: l,
+      lotSize: ls,
+      totalQty,
+      entryValue,
+      strikePrice: parseFloat(strikePrice) || trade.strikePrice,
+      expiryDate,
+      strategy: strategy || undefined,
+      notes: notes || undefined,
+      entryEmotion,
+      exitEmotion,
+      grossPnl,
+      netPnl,
+      roi,
+    });
+  };
 
   return (
-    <div className="bg-slate-900/60 border border-violet-500/20 rounded-2xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Options Cumulative P&L — {monthNames[month]} {year}</p>
-          <p className={`text-2xl font-black mt-1 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isPositive ? '+' : ''}₹{lastPnl.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-          </p>
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-black text-white tracking-tight">Edit Options Trade</h3>
+            <p className="text-slate-500 text-[10px] mt-0.5">{trade.underlying} {fmtNum(trade.strikePrice)} {trade.optionType} • {trade.side}</p>
+          </div>
+          <button onClick={onCancel} className="p-2 hover:bg-slate-800 rounded-xl text-slate-500 hover:text-white transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
         </div>
-        <div className="flex gap-5 text-right">
-          <div>
-            <p className="text-[9px] text-slate-600 uppercase tracking-widest">Best Day</p>
-            <p className="text-sm font-black text-emerald-400">₹{Math.max(...Object.values(dailyPnl), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+
+        <div className="p-5 space-y-4">
+          {/* Prices */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Entry Premium (₹)</label>
+              <input type="number" value={entryPremium} onChange={e => setEntryPremium(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Exit Premium (₹)</label>
+              <input type="number" value={exitPremium} onChange={e => setExitPremium(e.target.value)} placeholder="leave blank if open"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors" />
+            </div>
           </div>
-          <div>
-            <p className="text-[9px] text-slate-600 uppercase tracking-widest">Worst Day</p>
-            <p className="text-sm font-black text-rose-400">₹{Math.min(...Object.values(dailyPnl), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+
+          {/* Lots + Lot size + Strike */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Lots</label>
+              <input type="number" value={lots} onChange={e => setLots(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Lot Size</label>
+              <input type="number" value={lotSize} onChange={e => setLotSize(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Strike</label>
+              <input type="number" value={strikePrice} onChange={e => setStrikePrice(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors" />
+            </div>
           </div>
+
+          {/* Expiry */}
+          <div>
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Expiry Date</label>
+            <input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors" />
+          </div>
+
+          {/* Strategy */}
+          <div>
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Strategy</label>
+            <div className="flex flex-wrap gap-2">
+              {STRATEGIES.map(s => (
+                <button key={s} onClick={() => setStrategy(strategy === s ? '' : s)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${strategy === s ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-500 hover:bg-slate-700 hover:text-slate-300'}`}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Entry Emotion */}
+          <div>
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Entry Emotion</label>
+            <div className="grid grid-cols-3 gap-2">
+              {Object.values(Emotion).map(e => (
+                <button key={e} onClick={() => setEntryEmotion(e)}
+                  className={`px-2 py-2 rounded-xl text-[10px] font-bold transition-all ${entryEmotion === e ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+                  {emotionEmoji[e]} {e}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Exit Emotion (only if trade was closed) */}
+          {trade.status === TradeStatus.CLOSED && (
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Exit Emotion</label>
+              <div className="grid grid-cols-3 gap-2">
+                {Object.values(Emotion).map(e => (
+                  <button key={e} onClick={() => setExitEmotion(e)}
+                    className={`px-2 py-2 rounded-xl text-[10px] font-bold transition-all ${exitEmotion === e ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+                    {emotionEmoji[e]} {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          <div>
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Notes</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
+              placeholder="Trade setup, reason, psychology..."
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm resize-none focus:outline-none focus:border-indigo-500 transition-colors" />
+          </div>
+        </div>
+
+        <div className="p-5 flex gap-3 border-t border-slate-800">
+          <button onClick={onCancel} className="flex-1 py-3 bg-slate-800 text-slate-400 rounded-xl font-bold text-sm hover:bg-slate-700 transition-colors">Cancel</button>
+          <button onClick={handleSave} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-sm transition-all shadow-lg shadow-indigo-600/20 active:scale-95">
+            Save Changes
+          </button>
         </div>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 130 }} preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="optGradPos" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#10b981" stopOpacity="0.02" />
-          </linearGradient>
-          <linearGradient id="optGradNeg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.02" />
-            <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.35" />
-          </linearGradient>
-        </defs>
-        <line x1={PAD} y1={zeroY} x2={W - PAD} y2={zeroY} stroke="#334155" strokeWidth="1" strokeDasharray="4 3" />
-        <path d={fillPath} fill={isPositive ? 'url(#optGradPos)' : 'url(#optGradNeg)'} />
-        <path d={linePath} fill="none" stroke={isPositive ? '#10b981' : '#f43f5e'} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-        {series.map((s, i) => (
-          <circle key={i} cx={toX(i)} cy={toY(s.cumPnl)} r="3.5" fill={s.cumPnl >= 0 ? '#10b981' : '#f43f5e'} stroke="#0f172a" strokeWidth="1.5" />
-        ))}
-      </svg>
+    </div>
+  );
+};
+
+// ─── Options P&L Graph (Recharts Area Chart) ─────────────────────────────────
+
+type OptTimeRange = '7D' | '30D' | 'MTD' | 'ALL';
+
+const OptionsPnLGraph: React.FC<{ trades: OptionTrade[] }> = ({ trades }) => {
+  const [range, setRange] = useState<OptTimeRange>('ALL');
+
+  const equityData = useMemo(() => {
+    const now = Date.now();
+    const oneDay = 86400000;
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+
+    const closed = trades
+      .filter(t => {
+        if (t.status !== TradeStatus.CLOSED || t.netPnl === undefined) return false;
+        if (range === '7D') return t.timestamp > now - 7 * oneDay;
+        if (range === '30D') return t.timestamp > now - 30 * oneDay;
+        if (range === 'MTD') return t.timestamp >= startOfMonth;
+        return true;
+      })
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    let cum = 0;
+    return closed.map((t, i) => {
+      cum += t.netPnl || 0;
+      const sym = t.underlying !== 'CUSTOM' ? t.underlying : (t.customSymbol || 'CUSTOM');
+      return { name: `T${i + 1}`, pnl: parseFloat(cum.toFixed(2)), label: `${sym} ${t.strikePrice}${t.optionType}`, individual: t.netPnl };
+    });
+  }, [trades, range]);
+
+  if (equityData.length === 0) return null;
+
+  const lastPnl = equityData[equityData.length - 1]?.pnl ?? 0;
+  const isPositive = lastPnl >= 0;
+  const gradientColor = isPositive ? '#6366f1' : '#f43f5e';
+  const strokeColor = isPositive ? '#6366f1' : '#f43f5e';
+
+  return (
+    <div className="bg-slate-800/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-6 shadow-2xl">
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-xl font-black text-white tracking-tight">Options Equity Curve</h3>
+            <p className="text-slate-500 text-[10px] font-bold mt-1 uppercase tracking-tight opacity-70">Cumulative net P&L across closed options trades</p>
+          </div>
+          <div className={`text-right`}>
+            <p className={`text-2xl font-black ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {isPositive ? '+' : ''}₹{Math.abs(lastPnl).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            </p>
+            <p className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Net P&L</p>
+          </div>
+        </div>
+
+        <div className="flex items-center p-1 bg-slate-900/40 rounded-2xl border border-slate-700/50 w-fit">
+          {(['7D', '30D', 'MTD', 'ALL'] as OptTimeRange[]).map(r => (
+            <button key={r} onClick={() => setRange(r)}
+              className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
+                range === r
+                  ? 'bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.3)]'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
+              }`}>
+              {r}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="h-[260px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={equityData}>
+            <defs>
+              <linearGradient id="optEquityGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={gradientColor} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={gradientColor} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+            <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+            <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v => `₹${v}`} />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px' }}
+              itemStyle={{ color: '#fff' }}
+              formatter={(value: any, _: any, props: any) => [
+                `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
+                'Cumulative P&L'
+              ]}
+              labelFormatter={(label, payload) => {
+                const p = payload?.[0]?.payload;
+                return p ? `${label} — ${p.label}` : label;
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="pnl"
+              stroke={strokeColor}
+              strokeWidth={3}
+              fillOpacity={1}
+              fill="url(#optEquityGrad)"
+              animationDuration={1500}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };
 
 // ─── Options Calendar ─────────────────────────────────────────────────────────
 
-const OptionsCalendar: React.FC<{ trades: OptionTrade[]; onDelete: (id: string) => void }> = ({ trades, onDelete }) => {
+const OptionsCalendar: React.FC<{ trades: OptionTrade[]; onDelete: (id: string) => void; onEdit: (t: OptionTrade) => void }> = ({ trades, onDelete, onEdit }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [closedViewMode, setClosedViewMode] = useState<'grid' | 'list'>('grid');
@@ -724,7 +922,7 @@ const OptionsCalendar: React.FC<{ trades: OptionTrade[]; onDelete: (id: string) 
   return (
     <div className="space-y-4 pt-2 border-t border-slate-700/30 mt-2">
       {/* Graph */}
-      <OptionsPnLGraph trades={trades} year={year} month={month} />
+      <OptionsPnLGraph trades={trades} />
 
       {/* Calendar Grid */}
       <div className="bg-slate-900/60 border border-violet-500/10 rounded-2xl p-5">
@@ -843,11 +1041,11 @@ const OptionsCalendar: React.FC<{ trades: OptionTrade[]; onDelete: (id: string) 
 
           {closedViewMode === 'grid' ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-              {closedAll.map(trade => <ClosedTradeCard key={trade.id} trade={trade} onDelete={onDelete} />)}
+              {closedAll.map(trade => <ClosedTradeCard key={trade.id} trade={trade} onDelete={onDelete} onEdit={onEdit} />)}
             </div>
           ) : (
             <div className="space-y-2">
-              {closedAll.map(trade => <ClosedTradeListRow key={trade.id} trade={trade} onDelete={onDelete} />)}
+              {closedAll.map(trade => <ClosedTradeListRow key={trade.id} trade={trade} onDelete={onDelete} onEdit={onEdit} />)}
             </div>
           )}
         </div>
