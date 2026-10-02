@@ -558,7 +558,306 @@ const ClosedTradeListRow: React.FC<{ trade: OptionTrade; onDelete: (id: string) 
   );
 };
 
+// ─── Options P&L Graph (Cumulative) ─────────────────────────────────────────
+
+const OptionsPnLGraph: React.FC<{ trades: OptionTrade[]; year: number; month: number }> = ({ trades, year, month }) => {
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const dailyPnl = useMemo(() => {
+    const map: Record<number, number> = {};
+    trades.forEach(t => {
+      if (t.status !== TradeStatus.CLOSED) return;
+      const d = new Date(t.timestamp);
+      if (d.getFullYear() !== year || d.getMonth() !== month) return;
+      const day = d.getDate();
+      map[day] = (map[day] || 0) + (t.netPnl || 0);
+    });
+    return map;
+  }, [trades, year, month]);
+
+  const series: { day: number; cumPnl: number; dailyPnl: number }[] = [];
+  let cum = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    if (dailyPnl[d] !== undefined) {
+      cum += dailyPnl[d];
+      series.push({ day: d, cumPnl: cum, dailyPnl: dailyPnl[d] });
+    }
+  }
+
+  if (series.length === 0) return null;
+
+  const allVals = series.map(s => s.cumPnl);
+  const minVal = Math.min(0, ...allVals);
+  const maxVal = Math.max(0, ...allVals);
+  const range = maxVal - minVal || 1;
+  const W = 700, H = 140, PAD = 16;
+  const chartW = W - PAD * 2;
+  const chartH = H - PAD * 2;
+
+  const toX = (i: number) => PAD + (i / Math.max(series.length - 1, 1)) * chartW;
+  const toY = (val: number) => PAD + chartH - ((val - minVal) / range) * chartH;
+  const zeroY = toY(0);
+
+  const pts = series.map((s, i) => `${toX(i).toFixed(1)},${toY(s.cumPnl).toFixed(1)}`).join(' L ');
+  const linePath = `M ${pts}`;
+  const fillPath = `M ${toX(0)},${zeroY.toFixed(1)} L ${pts} L ${toX(series.length - 1).toFixed(1)},${zeroY.toFixed(1)} Z`;
+
+  const lastPnl = series[series.length - 1].cumPnl;
+  const isPositive = lastPnl >= 0;
+
+  return (
+    <div className="bg-slate-900/60 border border-violet-500/20 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Options Cumulative P&L — {monthNames[month]} {year}</p>
+          <p className={`text-2xl font-black mt-1 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {isPositive ? '+' : ''}₹{lastPnl.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+          </p>
+        </div>
+        <div className="flex gap-5 text-right">
+          <div>
+            <p className="text-[9px] text-slate-600 uppercase tracking-widest">Best Day</p>
+            <p className="text-sm font-black text-emerald-400">₹{Math.max(...Object.values(dailyPnl), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+          </div>
+          <div>
+            <p className="text-[9px] text-slate-600 uppercase tracking-widest">Worst Day</p>
+            <p className="text-sm font-black text-rose-400">₹{Math.min(...Object.values(dailyPnl), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+          </div>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 130 }} preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="optGradPos" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0.02" />
+          </linearGradient>
+          <linearGradient id="optGradNeg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.02" />
+            <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.35" />
+          </linearGradient>
+        </defs>
+        <line x1={PAD} y1={zeroY} x2={W - PAD} y2={zeroY} stroke="#334155" strokeWidth="1" strokeDasharray="4 3" />
+        <path d={fillPath} fill={isPositive ? 'url(#optGradPos)' : 'url(#optGradNeg)'} />
+        <path d={linePath} fill="none" stroke={isPositive ? '#10b981' : '#f43f5e'} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+        {series.map((s, i) => (
+          <circle key={i} cx={toX(i)} cy={toY(s.cumPnl)} r="3.5" fill={s.cumPnl >= 0 ? '#10b981' : '#f43f5e'} stroke="#0f172a" strokeWidth="1.5" />
+        ))}
+      </svg>
+    </div>
+  );
+};
+
+// ─── Options Calendar ─────────────────────────────────────────────────────────
+
+const OptionsCalendar: React.FC<{ trades: OptionTrade[]; onDelete: (id: string) => void }> = ({ trades, onDelete }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [closedViewMode, setClosedViewMode] = useState<'grid' | 'list'>('grid');
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  const dailyStats = useMemo(() => {
+    const map: Record<number, { pnl: number; count: number }> = {};
+    trades.forEach(t => {
+      if (t.status !== TradeStatus.CLOSED) return;
+      const d = new Date(t.timestamp);
+      if (d.getFullYear() !== year || d.getMonth() !== month) return;
+      const day = d.getDate();
+      if (!map[day]) map[day] = { pnl: 0, count: 0 };
+      map[day].pnl += t.netPnl || 0;
+      map[day].count += 1;
+    });
+    return map;
+  }, [trades, year, month]);
+
+  const closedAll = trades.filter(t => t.status === TradeStatus.CLOSED);
+
+  const renderDays = () => {
+    const days = [];
+    for (let i = 0; i < firstDayOfMonth; i++) {
+      days.push(<div key={`e-${i}`} className="h-14 sm:h-16 md:h-20 bg-slate-800/20 rounded-lg border border-slate-700/20" />);
+    }
+    const today = new Date();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const st = dailyStats[day];
+      const hasTrades = st && st.count > 0;
+      const isProfit = hasTrades && st.pnl >= 0;
+      const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
+
+      days.push(
+        <div
+          key={day}
+          onClick={() => hasTrades && setSelectedDay(day)}
+          className={`h-14 sm:h-16 md:h-20 p-1.5 rounded-lg border flex flex-col justify-between transition-all ${
+            hasTrades
+              ? isProfit
+                ? 'bg-emerald-500/90 border-emerald-400 cursor-pointer hover:scale-[1.03] shadow-lg shadow-emerald-500/15'
+                : 'bg-rose-500/90 border-rose-400 cursor-pointer hover:scale-[1.03] shadow-lg shadow-rose-500/15'
+              : isToday
+              ? 'border-violet-500/50 bg-transparent ring-1 ring-violet-500/30'
+              : 'border-slate-700/40 bg-transparent hover:bg-slate-800/30'
+          }`}
+        >
+          <span className={`text-[9px] md:text-[10px] font-bold ${
+            hasTrades ? 'text-white/80' : isToday ? 'text-violet-400' : 'text-slate-600'
+          }`}>{String(day).padStart(2, '0')}</span>
+          {hasTrades && (
+            <div>
+              <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-white truncate">
+                ₹{st.pnl.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </p>
+              <p className="text-[8px] text-white/60 hidden sm:block">{st.count}T</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return days;
+  };
+
+  return (
+    <div className="space-y-4 pt-2 border-t border-slate-700/30 mt-2">
+      {/* Graph */}
+      <OptionsPnLGraph trades={trades} year={year} month={month} />
+
+      {/* Calendar Grid */}
+      <div className="bg-slate-900/60 border border-violet-500/10 rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="text-sm font-black text-slate-200">Options Trading Calendar</span>
+          </div>
+          <div className="flex items-center bg-slate-800/60 rounded-xl border border-slate-700/50 p-1">
+            <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <span className="min-w-[110px] text-center text-xs font-black text-slate-200 px-2">{monthNames[month]} {year}</span>
+            <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-1.5">
+          {['S','M','T','W','T','F','S'].map((d, i) => (
+            <div key={i} className="text-[9px] font-black text-slate-600 uppercase text-center">{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">{renderDays()}</div>
+
+        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-700/30">
+          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-emerald-500/90 rounded-sm" /><span className="text-[9px] text-slate-500">Profit day</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-rose-500/90 rounded-sm" /><span className="text-[9px] text-slate-500">Loss day</span></div>
+        </div>
+      </div>
+
+      {/* Day Detail Modal */}
+      {selectedDay && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedDay(null)}>
+          <div className="bg-slate-800 border border-slate-700 w-full max-w-xl max-h-[75vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-slate-700 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-black text-white">Options on {selectedDay} {monthNames[month]} {year}</h3>
+                <p className="text-slate-500 text-xs">{trades.filter(t => { const d = new Date(t.timestamp); return d.getDate() === selectedDay && d.getMonth() === month && d.getFullYear() === year && t.status === TradeStatus.CLOSED; }).length} closed trades</p>
+              </div>
+              <button onClick={() => setSelectedDay(null)} className="p-2 hover:bg-slate-700 rounded-xl text-slate-400 hover:text-white transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {trades.filter(t => { const d = new Date(t.timestamp); return d.getDate() === selectedDay && d.getMonth() === month && d.getFullYear() === year && t.status === TradeStatus.CLOSED; }).map(trade => {
+                const pnl = trade.netPnl || 0;
+                const isP = pnl >= 0;
+                const sym = trade.underlying !== 'CUSTOM' ? trade.underlying : (trade.customSymbol || 'CUSTOM');
+                return (
+                  <div key={trade.id} className={`bg-slate-900/80 border rounded-xl p-4 ${isP ? 'border-emerald-500/20' : 'border-rose-500/20'}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="text-base font-black text-white">{sym} {fmtNum(trade.strikePrice)} {trade.optionType}</p>
+                        <div className="flex gap-1.5 mt-1">
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${trade.optionType === 'CE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>{trade.optionType}</span>
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${trade.side === 'BUY' ? 'bg-blue-500/10 text-blue-400' : 'bg-orange-500/10 text-orange-400'}`}>{trade.side}</span>
+                        </div>
+                      </div>
+                      <div className={`text-right ${isP ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        <p className="text-lg font-black">{isP ? '+' : ''}₹{Math.abs(pnl).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+                        <p className="text-[9px] opacity-70">{(trade.roi || 0).toFixed(1)}% ROI</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div><p className="text-[9px] text-slate-500">Entry</p><p className="text-slate-200">₹{trade.entryPremium}</p></div>
+                      <div><p className="text-[9px] text-slate-500">Exit</p><p className="text-slate-200">{trade.exitPremium ? `₹${trade.exitPremium}` : '—'}</p></div>
+                      <div><p className="text-[9px] text-slate-500">Lots</p><p className="text-slate-200">{trade.lots} × {trade.lotSize}</p></div>
+                      <div><p className="text-[9px] text-slate-500">Capital</p><p className="text-indigo-400">{fmt(trade.entryValue)}</p></div>
+                    </div>
+                    <div className="flex gap-3 mt-2 text-[9px] text-slate-500">
+                      <span>{emotionEmoji[trade.entryEmotion]} {trade.entryEmotion}</span>
+                      {trade.exitEmotion && <span>→ {emotionEmoji[trade.exitEmotion]} {trade.exitEmotion}</span>}
+                    </div>
+                    {trade.notes && <p className="mt-2 text-[9px] italic text-slate-500 bg-slate-800/50 rounded-lg p-2">{trade.notes}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Closed Journal — Grid/List */}
+      {closedAll.length > 0 && (
+        <div className="bg-slate-900/60 border border-slate-700/30 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-violet-500/20 rounded-lg flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs font-black text-white uppercase tracking-widest">Closed Options Journal</p>
+                <p className="text-[9px] text-slate-500">{closedAll.length} closed trade{closedAll.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+            <div className="flex gap-1 bg-slate-800/60 border border-slate-700/40 rounded-xl p-1">
+              <button onClick={() => setClosedViewMode('grid')} className={`p-2 rounded-lg transition-all ${closedViewMode === 'grid' ? 'bg-violet-600 text-white' : 'text-slate-500 hover:text-slate-300'}`} title="Grid">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                  <rect x="0" y="0" width="6" height="6" rx="1" /><rect x="10" y="0" width="6" height="6" rx="1" />
+                  <rect x="0" y="10" width="6" height="6" rx="1" /><rect x="10" y="10" width="6" height="6" rx="1" />
+                </svg>
+              </button>
+              <button onClick={() => setClosedViewMode('list')} className={`p-2 rounded-lg transition-all ${closedViewMode === 'list' ? 'bg-violet-600 text-white' : 'text-slate-500 hover:text-slate-300'}`} title="List">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {closedViewMode === 'grid' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              {closedAll.map(trade => <ClosedTradeCard key={trade.id} trade={trade} onDelete={onDelete} />)}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {closedAll.map(trade => <ClosedTradeListRow key={trade.id} trade={trade} onDelete={onDelete} />)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Stats Cards ──────────────────────────────────────────────────────────────
+
 
 const StatsBar: React.FC<{ stats: OptionStats }> = ({ stats }) => (
   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
