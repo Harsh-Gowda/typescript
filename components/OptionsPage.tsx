@@ -887,7 +887,6 @@ const OptionsPage: React.FC = () => {
   const [filter, setFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'CE' | 'PE'>('ALL');
   const [underlyingFilter, setUnderlyingFilter] = useState<string>('ALL');
-  const [closedViewMode, setClosedViewMode] = useState<'grid' | 'list'>('grid');
 
   const fetchTrades = async () => {
     if (!user) return;
