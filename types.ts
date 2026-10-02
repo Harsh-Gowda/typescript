@@ -79,11 +79,11 @@ export type OptionUnderlying =
 
 /** Standard lot sizes per underlying (NSE/BSE) */
 export const LOT_SIZES: Record<string, number> = {
-  NIFTY: 25,
-  BANKNIFTY: 15,
-  SENSEX: 10,
-  FINNIFTY: 25,
-  MIDCPNIFTY: 75,
+  NIFTY: 65,
+  BANKNIFTY: 30,
+  SENSEX: 20,
+  FINNIFTY: 40,
+  MIDCPNIFTY: 120,
   CUSTOM: 1,
 };
 
