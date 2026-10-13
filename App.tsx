@@ -334,6 +334,45 @@ const TradeJournal: React.FC = () => {
             <span className="text-[11px] font-bold uppercase tracking-wider">Options Chain</span>
             <span className="ml-auto text-[8px] font-black text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 rounded-md uppercase tracking-wide">CE/PE</span>
           </NavLink>
+
+          {/* ── Capital Risk Mini Bar ── */}
+          {capitalRiskState.enabled && (
+            <div className="px-4 mt-4">
+              <div className={`rounded-2xl p-3 border transition-all ${
+                capitalRiskState.alertLevel === 'breached' ? 'bg-rose-500/10 border-rose-500/20'
+                : capitalRiskState.alertLevel === 'danger'  ? 'bg-orange-500/10 border-orange-500/20'
+                : capitalRiskState.alertLevel === 'warning' ? 'bg-amber-500/10 border-amber-500/20'
+                : 'bg-violet-500/10 border-violet-500/20'
+              }`}>
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Daily Risk</span>
+                  <span className={`text-[9px] font-black ${
+                    capitalRiskState.alertLevel === 'breached' ? 'text-rose-400'
+                    : capitalRiskState.alertLevel === 'danger'  ? 'text-orange-400'
+                    : capitalRiskState.alertLevel === 'warning' ? 'text-amber-400'
+                    : 'text-violet-400'
+                  }`}>
+                    {capitalRiskState.usedPercent.toFixed(0)}% used
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      capitalRiskState.alertLevel === 'breached' ? 'bg-rose-500 animate-pulse'
+                      : capitalRiskState.alertLevel === 'danger'  ? 'bg-orange-500'
+                      : capitalRiskState.alertLevel === 'warning' ? 'bg-amber-400'
+                      : 'bg-violet-500'
+                    }`}
+                    style={{ width: `${Math.min(100, capitalRiskState.usedPercent)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-[8px] text-slate-600">₹{capitalRiskState.usedRisk.toFixed(0)} lost</span>
+                  <span className="text-[8px] text-slate-600">₹{capitalRiskState.dailyLimit.toFixed(0)} limit</span>
+                </div>
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Sidebar Footer */}
