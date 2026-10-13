@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Trade, DisciplineRule } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Trade, DisciplineRule, CapitalRiskConfig } from '../types';
 import {
   loadRules,
   saveRules,
@@ -7,11 +7,258 @@ import {
   saveLogs,
   computeDisciplineState,
   DEFAULT_RULES,
+  loadCapitalRisk,
+  saveCapitalRisk,
+  rollCapitalForward,
+  computeCapitalRiskState,
+  DEFAULT_CAPITAL_RISK,
 } from '../hooks/useDiscipline';
 
 interface Props {
   trades: Trade[];
 }
+
+// ─── Capital Risk Control Panel ──────────────────────────────────────────────────
+const RISK_PERCENTS = [5, 10, 15, 20, 25];
+
+const CapitalRiskPanel: React.FC<{
+  trades: Trade[];
+  todayNetPnl: number;
+}> = ({ trades, todayNetPnl }) => {
+  const [cfg, setCfg] = useState<CapitalRiskConfig>(() => {
+    const loaded = loadCapitalRisk();
+    return rollCapitalForward(loaded, trades);
+  });
+  const [saved, setSaved] = useState(false);
+  const [capitalInput, setCapitalInput] = useState(String(cfg.currentCapital));
+
+  // Recompute whenever cfg or todayNetPnl changes
+  const riskState = useMemo(
+    () => computeCapitalRiskState(cfg, todayNetPnl),
+    [cfg, todayNetPnl]
+  );
+
+  const handleSave = () => {
+    const capital = Math.max(0, Number(capitalInput) || 0);
+    const updated: CapitalRiskConfig = {
+      ...cfg,
+      currentCapital: capital,
+      startingCapital: capital,
+      lastUpdatedDate: new Date().toISOString().slice(0, 10),
+    };
+    saveCapitalRisk(updated);
+    setCfg(updated);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const toggleEnabled = () => {
+    const updated = { ...cfg, enabled: !cfg.enabled };
+    saveCapitalRisk(updated);
+    setCfg(updated);
+  };
+
+  const changePercent = (p: number) => {
+    const updated = { ...cfg, riskPercent: p };
+    saveCapitalRisk(updated);
+    setCfg(updated);
+  };
+
+  // Bar color
+  const barColor =
+    riskState.alertLevel === 'breached' ? 'bg-rose-500'
+    : riskState.alertLevel === 'danger'  ? 'bg-orange-500'
+    : riskState.alertLevel === 'warning' ? 'bg-amber-400'
+    : 'bg-emerald-500';
+
+  const barGlow =
+    riskState.alertLevel === 'breached' ? 'shadow-rose-500/50'
+    : riskState.alertLevel === 'danger'  ? 'shadow-orange-500/40'
+    : riskState.alertLevel === 'warning' ? 'shadow-amber-400/30'
+    : 'shadow-emerald-500/20';
+
+  const tomorrowCapital = cfg.currentCapital + todayNetPnl;
+
+  return (
+    <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/40 rounded-3xl p-6 backdrop-blur-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-violet-500/10 border border-violet-500/20 rounded-xl">
+            <svg className="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="font-black text-white">Capital Risk Control</h3>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest">Prop firm style daily limit</p>
+          </div>
+        </div>
+        {/* Enable toggle */}
+        <button
+          onClick={toggleEnabled}
+          className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
+            cfg.enabled ? 'bg-violet-600' : 'bg-slate-700'
+          }`}
+        >
+          <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${
+            cfg.enabled ? 'left-6' : 'left-0.5'
+          }`} />
+        </button>
+      </div>
+
+      {!cfg.enabled && (
+        <div className="text-center py-8 border border-dashed border-slate-700/40 rounded-2xl">
+          <p className="text-4xl mb-3">🛡️</p>
+          <p className="text-slate-400 text-sm font-bold">Capital Risk Control is OFF</p>
+          <p className="text-slate-600 text-xs mt-1">Toggle the switch above to activate prop-firm style daily limits.</p>
+        </div>
+      )}
+
+      {cfg.enabled && (
+        <div className="space-y-6">
+          {/* Live Risk Meter */}
+          <div className="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/30">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Today's Risk Meter</p>
+              <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border ${
+                riskState.alertLevel === 'breached' ? 'text-rose-400 bg-rose-500/10 border-rose-500/30 animate-pulse'
+                : riskState.alertLevel === 'danger'  ? 'text-orange-400 bg-orange-500/10 border-orange-500/30'
+                : riskState.alertLevel === 'warning' ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+                : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+              }`}>
+                {riskState.alertLevel === 'breached' ? '⛔ LIMIT HIT'
+                  : riskState.alertLevel === 'danger'  ? '🔴 DANGER'
+                  : riskState.alertLevel === 'warning' ? '🟡 WARNING'
+                  : '🟢 SAFE'}
+              </span>
+            </div>
+
+            {/* Bar */}
+            <div className="w-full h-4 bg-slate-800 rounded-full overflow-hidden mb-3">
+              <div
+                className={`h-full rounded-full transition-all duration-700 shadow-lg ${barColor} ${barGlow}`}
+                style={{ width: `${Math.min(100, riskState.usedPercent)}%` }}
+              />
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center">
+                <p className="text-[9px] text-slate-500 uppercase tracking-widest">Used</p>
+                <p className="text-sm font-black text-rose-400">₹{riskState.usedRisk.toFixed(0)}</p>
+                <p className="text-[9px] text-slate-600">{riskState.usedPercent.toFixed(1)}%</p>
+              </div>
+              <div className="text-center border-x border-slate-700/30">
+                <p className="text-[9px] text-slate-500 uppercase tracking-widest">Daily Limit</p>
+                <p className="text-sm font-black text-white">₹{riskState.dailyLimit.toFixed(0)}</p>
+                <p className="text-[9px] text-slate-600">{cfg.riskPercent}% of capital</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[9px] text-slate-500 uppercase tracking-widest">Remaining</p>
+                <p className={`text-sm font-black ${riskState.remainingRisk > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  ₹{riskState.remainingRisk.toFixed(0)}
+                </p>
+                <p className="text-[9px] text-slate-600">{(100 - Math.min(100, riskState.usedPercent)).toFixed(1)}% left</p>
+              </div>
+            </div>
+
+            {/* Alert messages */}
+            {riskState.alertLevel === 'breached' && (
+              <div className="mt-4 bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 text-center animate-pulse">
+                <p className="text-rose-400 text-xs font-black">⛔ Daily Capital Limit Breached!</p>
+                <p className="text-slate-400 text-[10px] mt-1">You have lost {cfg.riskPercent}% of your capital today. Stop trading to protect your account.</p>
+              </div>
+            )}
+            {riskState.alertLevel === 'danger' && (
+              <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 text-center">
+                <p className="text-orange-400 text-xs font-black">🔴 75%+ of limit used — Extreme caution!</p>
+                <p className="text-slate-400 text-[10px] mt-1">Only ₹{riskState.remainingRisk.toFixed(0)} left before limit. Consider stopping for the day.</p>
+              </div>
+            )}
+            {riskState.alertLevel === 'warning' && (
+              <div className="mt-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-center">
+                <p className="text-amber-400 text-xs font-black">🟡 Half your limit used — Slow down</p>
+                <p className="text-slate-400 text-[10px] mt-1">₹{riskState.remainingRisk.toFixed(0)} remaining. Trade carefully.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Settings */}
+          <div className="space-y-4">
+            {/* Current Capital */}
+            <div>
+              <label className="text-xs font-black text-slate-300 block mb-2">Current Capital (₹)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-sm">₹</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={capitalInput}
+                  onChange={e => setCapitalInput(e.target.value)}
+                  className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl pl-8 pr-4 py-3 text-white font-black outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-sm"
+                  placeholder="e.g. 20000"
+                />
+              </div>
+              <p className="text-[10px] text-slate-600 mt-1">
+                Today's limit = ₹{((Number(capitalInput) || 0) * cfg.riskPercent / 100).toFixed(0)} ({cfg.riskPercent}%)
+              </p>
+            </div>
+
+            {/* Risk Percent */}
+            <div>
+              <label className="text-xs font-black text-slate-300 block mb-2">Daily Risk %</label>
+              <div className="flex gap-2">
+                {RISK_PERCENTS.map(p => (
+                  <button
+                    key={p}
+                    onClick={() => changePercent(p)}
+                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${
+                      cfg.riskPercent === p
+                        ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
+                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700/50'
+                    }`}
+                  >
+                    {p}%
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tomorrow's projected capital */}
+            <div className="bg-slate-900/40 rounded-xl p-3 border border-slate-700/30">
+              <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Tomorrow's Projected Capital</p>
+              <div className="flex items-center justify-between">
+                <p className={`text-base font-black ${
+                  tomorrowCapital >= cfg.currentCapital ? 'text-emerald-400' : 'text-rose-400'
+                }`}>
+                  ₹{Math.max(0, tomorrowCapital).toFixed(0)}
+                </p>
+                <p className="text-[10px] text-slate-500">
+                  {todayNetPnl >= 0 ? '+' : ''}{todayNetPnl.toFixed(0)} today's P&L
+                </p>
+              </div>
+              <p className="text-[9px] text-slate-600 mt-1">
+                Next day limit = ₹{(Math.max(0, tomorrowCapital) * cfg.riskPercent / 100).toFixed(0)}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSave}
+            className={`w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all duration-300 ${
+              saved
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
+                : 'bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-600/20'
+            }`}
+          >
+            {saved ? '✓ Saved!' : 'Update Capital'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const psychTips = [
   {

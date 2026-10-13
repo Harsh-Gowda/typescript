@@ -46,6 +46,30 @@ export interface DisciplineRule {
   maxDailyLossAmount: number;     // Block after losing this much today (0 = disabled)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CAPITAL RISK CONFIG (Prop Firm Style Daily Limit)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CapitalRiskConfig {
+  enabled: boolean;              // Whether this feature is active
+  startingCapital: number;       // Initial account capital (₹)
+  riskPercent: number;           // Daily risk limit as % of current capital (e.g. 10)
+  currentCapital: number;        // Today's capital (auto-updated from prev day P&L)
+  lastUpdatedDate: string;       // 'YYYY-MM-DD' — the date capital was last rolled
+}
+
+export interface CapitalRiskState {
+  enabled: boolean;
+  dailyLimit: number;            // currentCapital * riskPercent / 100
+  usedRisk: number;              // |todayNetLoss| (only losses count)
+  remainingRisk: number;         // dailyLimit - usedRisk
+  usedPercent: number;           // 0-100+
+  isBreached: boolean;           // usedRisk >= dailyLimit
+  alertLevel: 'safe' | 'warning' | 'danger' | 'breached';
+  currentCapital: number;
+  riskPercent: number;
+}
+
 export interface DisciplineLog {
   date: string;                   // 'YYYY-MM-DD'
   totalTrades: number;
