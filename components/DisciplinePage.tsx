@@ -616,6 +616,9 @@ const DisciplinePage: React.FC<Props> = ({ trades }) => {
         </div>
       </div>
 
+      {/* ── Capital Risk Control ── */}
+      <CapitalRiskPanel trades={trades} todayNetPnl={state.todayNetPnl} />
+
       {/* ── Psychology Tips ── */}
       <div>
         <div className="mb-5">
