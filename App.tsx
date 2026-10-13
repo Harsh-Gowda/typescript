@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, NavLink, Navigate } from 'react-router-dom';
-import { Trade, TradeStatus, Emotion, Currency, CapitalRiskState } from './types';
+import { Trade, TradeStatus, Emotion, Currency, CapitalRiskState, OptionTrade } from './types';
 import DashboardPage from './components/DashboardPage';
 import MarketCalendar from './components/MarketCalendar';
 import TradeForm from './components/TradeForm';
@@ -16,8 +16,9 @@ import { useDiscipline, loadCapitalRisk, rollCapitalForward, computeCapitalRiskS
 const TradeJournal: React.FC = () => {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation(); // Used for header/nav active states
+  const location = useLocation();
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [optionTrades, setOptionTrades] = useState<OptionTrade[]>([]);
   const [displayCurrency, setDisplayCurrency] = useState<Currency>(() => {
     return (localStorage.getItem('trademind_currency') as Currency) || 'USD';
   });
@@ -35,20 +36,30 @@ const TradeJournal: React.FC = () => {
   });
   const [capitalRiskDismissed, setCapitalRiskDismissed] = useState(false);
 
-  // Recompute capital risk whenever trades change
+  // Recompute capital risk whenever trades OR option trades change
+  // Combines BOTH regular trades P&L + option trades netPnl for today
   useEffect(() => {
     const cfg = rollCapitalForward(loadCapitalRisk(), trades);
     const today = new Date().toISOString().slice(0, 10);
-    const todayNetPnl = trades
+
+    const regularPnl = trades
       .filter(t => {
         const d = new Date(t.timestamp).toISOString().slice(0, 10);
         return d === today && t.status === TradeStatus.CLOSED;
       })
       .reduce((sum, t) => sum + (t.pnl ?? 0), 0);
-    setCapitalRiskState(computeCapitalRiskState(cfg, todayNetPnl));
-    // Re-show modal if breach status changes (e.g. new loss pushes over limit)
+
+    const optionPnl = optionTrades
+      .filter(t => {
+        const d = new Date(t.timestamp).toISOString().slice(0, 10);
+        return d === today && t.status === TradeStatus.CLOSED;
+      })
+      .reduce((sum, t) => sum + (t.netPnl ?? 0), 0);
+
+    const todayCombinedPnl = regularPnl + optionPnl;
+    setCapitalRiskState(computeCapitalRiskState(cfg, todayCombinedPnl));
     setCapitalRiskDismissed(false);
-  }, [trades]);
+  }, [trades, optionTrades]);
 
   // Re-show guard when block state changes (new loss closes a guard dismiss)
   useEffect(() => {
@@ -110,9 +121,43 @@ const TradeJournal: React.FC = () => {
     }
   };
 
+  // Fetch today's option trades for capital risk calculation
+  const fetchOptionTrades = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('option_trades')
+      .select('id, status, timestamp, net_pnl, entry_emotion')
+      .eq('user_id', user.id)
+      .order('timestamp', { ascending: false });
+
+    if (!error && data) {
+      const mapped: OptionTrade[] = data.map((t: any) => ({
+        id: t.id,
+        status: t.status,
+        timestamp: Number(t.timestamp),
+        netPnl: t.net_pnl,
+        // Required fields for OptionTrade type
+        underlying: 'NIFTY' as const,
+        strikePrice: 0,
+        optionType: 'CE' as const,
+        expiryDate: '',
+        side: 'BUY' as const,
+        entryPremium: 0,
+        lots: 1,
+        lotSize: 1,
+        totalQty: 1,
+        entryValue: 0,
+        entryEmotion: t.entry_emotion,
+      }));
+      setOptionTrades(mapped);
+    }
+  };
+
   useEffect(() => {
     fetchTrades();
+    fetchOptionTrades();
   }, [user]);
+
 
   const addTrade = async (trade: Omit<Trade, 'id' | 'status'>) => {
     if (!user) return;
@@ -471,7 +516,7 @@ const TradeJournal: React.FC = () => {
             } />
             <Route path="/market" element={<MarketCalendar />} />
             <Route path="/discipline" element={<DisciplinePage trades={trades} />} />
-            <Route path="/options" element={<OptionsPage />} />
+            <Route path="/options" element={<OptionsPage onTradesChange={fetchOptionTrades} />} />
             <Route path="/add" element={
               <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
                 <div className="flex justify-between items-center bg-slate-900/40 p-4 lg:p-6 rounded-2xl lg:rounded-3xl border border-slate-700/30 backdrop-blur-xl">

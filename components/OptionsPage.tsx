@@ -1081,7 +1081,7 @@ const StatsBar: React.FC<{ stats: OptionStats }> = ({ stats }) => (
 
 // ─── Main Options Page ────────────────────────────────────────────────────────
 
-const OptionsPage: React.FC = () => {
+const OptionsPage: React.FC<{ onTradesChange?: () => void }> = ({ onTradesChange }) => {
   const { user } = useAuth();
   const [trades, setTrades] = useState<OptionTrade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1164,6 +1164,7 @@ const OptionsPage: React.FC = () => {
     if (!error) {
       setShowForm(false);
       fetchTrades();
+      onTradesChange?.();
     } else {
       console.error('Error adding option trade:', error);
       alert('Failed to save. Check console.');
@@ -1193,6 +1194,7 @@ const OptionsPage: React.FC = () => {
     if (!error) {
       setClosingTrade(null);
       fetchTrades();
+      onTradesChange?.();
     } else {
       alert('Failed to close trade: ' + error.message);
     }
@@ -1202,6 +1204,7 @@ const OptionsPage: React.FC = () => {
     if (!confirm('Delete this options trade permanently?')) return;
     await supabase.from('option_trades').delete().eq('id', id);
     fetchTrades();
+    onTradesChange?.();
   };
 
   const handleEditTrade = async (updated: OptionTrade) => {
@@ -1225,6 +1228,7 @@ const OptionsPage: React.FC = () => {
     if (!error) {
       setEditingTrade(null);
       fetchTrades();
+      onTradesChange?.();
     } else {
       alert('Failed to save changes: ' + error.message);
     }

@@ -32,18 +32,23 @@ const CapitalRiskPanel: React.FC<{
   const [saved, setSaved] = useState(false);
   const [capitalInput, setCapitalInput] = useState(String(cfg.currentCapital));
 
-  // Recompute whenever cfg or todayNetPnl changes
+  // ── Key fix: compute live capital from what's typed, not from saved cfg ──
+  const liveCapital = Math.max(0, Number(capitalInput) || 0);
+
+  // Recompute risk state LIVE from capitalInput + selected riskPercent
   const riskState = useMemo(
-    () => computeCapitalRiskState(cfg, todayNetPnl),
-    [cfg, todayNetPnl]
+    () => computeCapitalRiskState(
+      { ...cfg, currentCapital: liveCapital },
+      todayNetPnl
+    ),
+    [cfg, liveCapital, todayNetPnl]
   );
 
   const handleSave = () => {
-    const capital = Math.max(0, Number(capitalInput) || 0);
     const updated: CapitalRiskConfig = {
       ...cfg,
-      currentCapital: capital,
-      startingCapital: capital,
+      currentCapital: liveCapital,
+      startingCapital: liveCapital,
       lastUpdatedDate: new Date().toISOString().slice(0, 10),
     };
     saveCapitalRisk(updated);
@@ -64,7 +69,7 @@ const CapitalRiskPanel: React.FC<{
     setCfg(updated);
   };
 
-  // Bar color
+  // Bar color based on live risk state
   const barColor =
     riskState.alertLevel === 'breached' ? 'bg-rose-500'
     : riskState.alertLevel === 'danger'  ? 'bg-orange-500'
@@ -77,7 +82,9 @@ const CapitalRiskPanel: React.FC<{
     : riskState.alertLevel === 'warning' ? 'shadow-amber-400/30'
     : 'shadow-emerald-500/20';
 
-  const tomorrowCapital = cfg.currentCapital + todayNetPnl;
+  // Tomorrow's capital also uses live typed capital
+  const tomorrowCapital = liveCapital + todayNetPnl;
+
 
   return (
     <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/40 rounded-3xl p-6 backdrop-blur-xl">
@@ -200,8 +207,8 @@ const CapitalRiskPanel: React.FC<{
                   placeholder="e.g. 20000"
                 />
               </div>
-              <p className="text-[10px] text-slate-600 mt-1">
-                Today's limit = ₹{((Number(capitalInput) || 0) * cfg.riskPercent / 100).toFixed(0)} ({cfg.riskPercent}%)
+              <p className="text-[10px] text-violet-400/70 mt-1 font-bold">
+                Today's limit = ₹{riskState.dailyLimit.toFixed(0)} &nbsp;({cfg.riskPercent}% of ₹{liveCapital.toFixed(0)})
               </p>
             </div>
 
@@ -225,12 +232,11 @@ const CapitalRiskPanel: React.FC<{
               </div>
             </div>
 
-            {/* Tomorrow's projected capital */}
             <div className="bg-slate-900/40 rounded-xl p-3 border border-slate-700/30">
               <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Tomorrow's Projected Capital</p>
               <div className="flex items-center justify-between">
                 <p className={`text-base font-black ${
-                  tomorrowCapital >= cfg.currentCapital ? 'text-emerald-400' : 'text-rose-400'
+                  tomorrowCapital >= liveCapital ? 'text-emerald-400' : 'text-rose-400'
                 }`}>
                   ₹{Math.max(0, tomorrowCapital).toFixed(0)}
                 </p>
@@ -239,7 +245,7 @@ const CapitalRiskPanel: React.FC<{
                 </p>
               </div>
               <p className="text-[9px] text-slate-600 mt-1">
-                Next day limit = ₹{(Math.max(0, tomorrowCapital) * cfg.riskPercent / 100).toFixed(0)}
+                Next day limit = ₹{(Math.max(0, tomorrowCapital) * cfg.riskPercent / 100).toFixed(0)} ({cfg.riskPercent}%)
               </p>
             </div>
           </div>
