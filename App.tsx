@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, NavLink, Navigate } from 'react-router-dom';
 import { Trade, TradeStatus, Emotion, Currency, CapitalRiskState } from './types';
 import DashboardPage from './components/DashboardPage';
