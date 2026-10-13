@@ -1,7 +1,6 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Routes, Route, useNavigate, useLocation, NavLink, Navigate } from 'react-router-dom';
-import { Trade, TradeStatus, Emotion, Currency } from './types';
+import { Trade, TradeStatus, Emotion, Currency, CapitalRiskState } from './types';
 import DashboardPage from './components/DashboardPage';
 import MarketCalendar from './components/MarketCalendar';
 import TradeForm from './components/TradeForm';
@@ -12,7 +11,7 @@ import TradinkChat from './components/TradeMindChat';
 import DisciplineGuard from './components/DisciplineGuard';
 import DisciplinePage from './components/DisciplinePage';
 import OptionsPage from './components/OptionsPage';
-import { useDiscipline } from './hooks/useDiscipline';
+import { useDiscipline, loadCapitalRisk, rollCapitalForward, computeCapitalRiskState } from './hooks/useDiscipline';
 
 const TradeJournal: React.FC = () => {
   const { signOut, user } = useAuth();
@@ -29,6 +28,28 @@ const TradeJournal: React.FC = () => {
   const [guardDismissed, setGuardDismissed] = useState(false);
   const [checkpointDismissed, setCheckpointDismissed] = useState(false);
 
+  // ── Capital Risk state ────────────────────────────────────────────────────
+  const [capitalRiskState, setCapitalRiskState] = useState<CapitalRiskState>(() => {
+    const cfg = rollCapitalForward(loadCapitalRisk(), []);
+    return computeCapitalRiskState(cfg, 0);
+  });
+  const [capitalRiskDismissed, setCapitalRiskDismissed] = useState(false);
+
+  // Recompute capital risk whenever trades change
+  useEffect(() => {
+    const cfg = rollCapitalForward(loadCapitalRisk(), trades);
+    const today = new Date().toISOString().slice(0, 10);
+    const todayNetPnl = trades
+      .filter(t => {
+        const d = new Date(t.timestamp).toISOString().slice(0, 10);
+        return d === today && t.status === TradeStatus.CLOSED;
+      })
+      .reduce((sum, t) => sum + (t.pnl ?? 0), 0);
+    setCapitalRiskState(computeCapitalRiskState(cfg, todayNetPnl));
+    // Re-show modal if breach status changes (e.g. new loss pushes over limit)
+    setCapitalRiskDismissed(false);
+  }, [trades]);
+
   // Re-show guard when block state changes (new loss closes a guard dismiss)
   useEffect(() => {
     setGuardDismissed(false);
@@ -42,6 +63,8 @@ const TradeJournal: React.FC = () => {
     disciplineState.isBlocked && !guardDismissed;
   const showCheckpoint =
     !disciplineState.isBlocked && disciplineState.isProfitCheckpoint && !checkpointDismissed;
+  const showCapitalRiskBlock =
+    capitalRiskState.enabled && capitalRiskState.isBreached && !capitalRiskDismissed;
 
   // Derived state to keep UI logic consistent with routing
   const isAdding = location.pathname === '/add';
@@ -195,7 +218,7 @@ const TradeJournal: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-[#0f172a] text-slate-200 overflow-hidden">
       {/* ── Discipline Guard overlay ─────────────────────────────────────── */}
-      {(showGuard || showCheckpoint) && (
+      {(showGuard || showCheckpoint || showCapitalRiskBlock) && (
         <DisciplineGuard
           state={{
             ...disciplineState,
@@ -203,10 +226,12 @@ const TradeJournal: React.FC = () => {
             isBlocked: showGuard,
             isProfitCheckpoint: showCheckpoint,
           }}
+          capitalRisk={capitalRiskState}
           onDismissBlock={() => setGuardDismissed(true)}
           onOverrideBlock={() => setGuardDismissed(true)}
           onStopTrading={() => { setCheckpointDismissed(true); navigate('/'); }}
           onContinueTrading={() => setCheckpointDismissed(true)}
+          onDismissCapitalRisk={() => setCapitalRiskDismissed(true)}
         />
       )}
       {/* Sidebar Navigation - Desktop Only */}

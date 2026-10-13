@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { DisciplineState } from '../hooks/useDiscipline';
+import { CapitalRiskState } from '../types';
 
 interface Props {
   state: DisciplineState;
+  capitalRisk: CapitalRiskState;
   onDismissBlock: () => void;
   onOverrideBlock: () => void;
   onStopTrading: () => void;
   onContinueTrading: () => void;
+  onDismissCapitalRisk: () => void;
 }
 
 // ─── Loss Block Modal ─────────────────────────────────────────────────────────
@@ -163,6 +166,137 @@ const LossBlockModal: React.FC<{
   );
 };
 
+// ─── Capital Risk Block Modal ─────────────────────────────────────────────────────
+const CapitalRiskBlockModal: React.FC<{
+  capitalRisk: CapitalRiskState;
+  onDismiss: () => void;
+}> = ({ capitalRisk, onDismiss }) => {
+  const [overrideMode, setOverrideMode] = useState(false);
+  const [overrideText, setOverrideText] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      {/* Animated backdrop */}
+      <div className="absolute inset-0 bg-violet-950/80 backdrop-blur-md animate-pulse" style={{ animationDuration: '3s' }} />
+
+      {/* Pulsing danger border */}
+      <div className="absolute inset-0 pointer-events-none border-[3px] border-violet-500/60 animate-pulse" style={{ animationDuration: '1.5s' }} />
+
+      <div className="relative w-full max-w-lg">
+        {/* Glow */}
+        <div className="absolute -inset-4 bg-violet-500/20 rounded-3xl blur-2xl" />
+
+        <div className="relative bg-gradient-to-b from-slate-900 to-violet-950/40 border-2 border-violet-500/50 rounded-3xl p-8 shadow-[0_0_60px_rgba(139,92,246,0.3)]">
+
+          {/* Icon */}
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="absolute -inset-3 bg-violet-500/30 rounded-full blur-xl animate-pulse" />
+              <div className="relative w-20 h-20 bg-violet-500/20 border-2 border-violet-500/50 rounded-full flex items-center justify-center text-4xl">
+                💸
+              </div>
+            </div>
+          </div>
+
+          <h2 className="text-2xl font-black text-center text-violet-400 mb-2 tracking-tight">
+            ⛔ Daily Capital Limit Hit!
+          </h2>
+          <p className="text-slate-400 text-center text-sm mb-6 leading-relaxed">
+            You have lost <span className="text-rose-400 font-black">₹{capitalRisk.usedRisk.toFixed(0)}</span> today
+            &nbsp;— that is your full <span className="text-violet-400 font-black">{capitalRisk.riskPercent}% daily limit</span>.
+            Continuing to trade now is pure gambling. Your account cannot grow if you ignore this rule.
+          </p>
+
+          {/* Risk breakdown */}
+          <div className="mb-6 bg-slate-900/60 rounded-2xl p-4 border border-slate-700/50">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Today's Capital Risk</p>
+            <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden mb-3">
+              <div className="h-full rounded-full bg-rose-500 shadow-lg shadow-rose-500/50 animate-pulse" style={{ width: '100%' }} />
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase">Capital</p>
+                <p className="text-sm font-black text-white">₹{capitalRisk.currentCapital.toFixed(0)}</p>
+              </div>
+              <div className="border-x border-slate-700/30">
+                <p className="text-[9px] text-slate-500 uppercase">Limit ({capitalRisk.riskPercent}%)</p>
+                <p className="text-sm font-black text-violet-400">₹{capitalRisk.dailyLimit.toFixed(0)}</p>
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase">Lost Today</p>
+                <p className="text-sm font-black text-rose-400">₹{capitalRisk.usedRisk.toFixed(0)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Tips */}
+          <div className="mb-6 space-y-2">
+            {[
+              '📵 Close all open positions immediately',
+              '🧘 Step away from trading for the rest of the day',
+              '📝 Journal: What caused today\'s losses?',
+              '📊 Tomorrow your new limit auto-calculates from updated capital',
+            ].map((tip, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs text-slate-400">
+                <span>{tip}</span>
+              </div>
+            ))}
+          </div>
+
+          {!overrideMode && !confirmed && (
+            <>
+              <button
+                onClick={onDismiss}
+                className="w-full bg-violet-600 hover:bg-violet-500 text-white font-black py-4 rounded-2xl transition-all duration-300 shadow-lg shadow-violet-600/30 text-sm uppercase tracking-widest mb-3"
+              >
+                I Understand — I Will Stop Trading Today
+              </button>
+              <button
+                onClick={() => setOverrideMode(true)}
+                className="w-full text-slate-600 hover:text-slate-500 text-[10px] font-bold py-2 transition-colors uppercase tracking-widest"
+              >
+                Override (Not recommended — This is gambling)
+              </button>
+            </>
+          )}
+
+          {overrideMode && !confirmed && (
+            <div className="space-y-4">
+              <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4">
+                <p className="text-rose-400 text-xs font-bold mb-1">⚠️ Last Warning</p>
+                <p className="text-slate-400 text-xs">Type <span className="font-black text-white">I AM GAMBLING</span> to override. You set this limit to protect yourself.</p>
+              </div>
+              <input
+                autoFocus
+                value={overrideText}
+                onChange={e => setOverrideText(e.target.value.toUpperCase())}
+                placeholder="Type: I AM GAMBLING"
+                className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-white text-sm font-mono outline-none focus:border-rose-500 transition-colors"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setOverrideMode(false); setOverrideText(''); }}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl text-sm transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={overrideText !== 'I AM GAMBLING'}
+                  onClick={() => { setConfirmed(true); onDismiss(); }}
+                  className="flex-1 bg-rose-600 hover:bg-rose-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-black py-3 rounded-xl text-sm transition-all"
+                >
+                  Override Limit
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Win Checkpoint Modal ─────────────────────────────────────────────────────
 const WinCheckpointModal: React.FC<{
   state: DisciplineState;
@@ -286,11 +420,23 @@ const WinCheckpointModal: React.FC<{
 // ─── Main Guard Component ─────────────────────────────────────────────────────
 const DisciplineGuard: React.FC<Props> = ({
   state,
+  capitalRisk,
   onDismissBlock,
   onOverrideBlock,
   onStopTrading,
   onContinueTrading,
+  onDismissCapitalRisk,
 }) => {
+  // Capital risk breach — highest priority
+  if (capitalRisk.enabled && capitalRisk.isBreached) {
+    return (
+      <CapitalRiskBlockModal
+        capitalRisk={capitalRisk}
+        onDismiss={onDismissCapitalRisk}
+      />
+    );
+  }
+
   if (state.isBlocked) {
     return (
       <LossBlockModal
