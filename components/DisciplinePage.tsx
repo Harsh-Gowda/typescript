@@ -16,6 +16,7 @@ import {
 
 interface Props {
   trades: Trade[];
+  totalOptionNetPnl: number;
 }
 
 // ─── Capital Risk Control Panel ──────────────────────────────────────────────────
@@ -24,16 +25,19 @@ const RISK_PERCENTS = [5, 10, 15, 20, 25];
 const CapitalRiskPanel: React.FC<{
   trades: Trade[];
   todayNetPnl: number;
-}> = ({ trades, todayNetPnl }) => {
+  totalOptionNetPnl: number;
+}> = ({ trades, todayNetPnl, totalOptionNetPnl }) => {
   const [cfg, setCfg] = useState<CapitalRiskConfig>(() => {
     const loaded = loadCapitalRisk();
     return rollCapitalForward(loaded, trades);
   });
   const [saved, setSaved] = useState(false);
-  const [capitalInput, setCapitalInput] = useState(String(cfg.currentCapital));
 
-  // ── Key fix: compute live capital from what's typed, not from saved cfg ──
-  const liveCapital = Math.max(0, Number(capitalInput) || 0);
+  // ── Live capital = startingCapital + ALL cumulative option P&L ──
+  // This auto-grows/shrinks as trades close, no manual typing needed
+  const liveCapital = Math.max(0, (cfg.startingCapital || 0) + totalOptionNetPnl);
+  // capitalInput is now read-only display (no manual override)
+  const [capitalInput, setCapitalInput] = useState(String(cfg.startingCapital));
 
   // Recompute risk state LIVE from capitalInput + selected riskPercent
   const riskState = useMemo(
@@ -45,10 +49,13 @@ const CapitalRiskPanel: React.FC<{
   );
 
   const handleSave = () => {
+    // Save startingCapital from the input; liveCapital will auto-derive from P&L
+    const startingVal = Math.max(0, Number(capitalInput) || 0);
     const updated: CapitalRiskConfig = {
       ...cfg,
-      currentCapital: liveCapital,
-      startingCapital: liveCapital,
+      startingCapital: startingVal,
+      // currentCapital stored = startingCapital (liveCapital computed on render)
+      currentCapital: startingVal,
       lastUpdatedDate: new Date().toISOString().slice(0, 10),
     };
     saveCapitalRisk(updated);
@@ -195,7 +202,7 @@ const CapitalRiskPanel: React.FC<{
           <div className="space-y-4">
             {/* Current Capital */}
             <div>
-              <label className="text-xs font-black text-slate-300 block mb-2">Current Capital (₹)</label>
+              <label className="text-xs font-black text-slate-300 block mb-2">Starting Capital (₹)</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-sm">₹</span>
                 <input
@@ -206,6 +213,25 @@ const CapitalRiskPanel: React.FC<{
                   className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl pl-8 pr-4 py-3 text-white font-black outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-sm"
                   placeholder="e.g. 20000"
                 />
+              </div>
+              {/* Live capital display — auto-computed from starting + all P&L */}
+              <div className="mt-2 bg-slate-800/40 border border-slate-700/30 rounded-xl px-4 py-2.5 flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Live Account Value</p>
+                  <p className={`text-base font-black mt-0.5 ${
+                    liveCapital >= (cfg.startingCapital || 0) ? 'text-emerald-400' : 'text-rose-400'
+                  }`}>
+                    ₹{liveCapital.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">All-time Options P&L</p>
+                  <p className={`text-sm font-black mt-0.5 ${
+                    totalOptionNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                  }`}>
+                    {totalOptionNetPnl >= 0 ? '+' : ''}₹{totalOptionNetPnl.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
               </div>
               <p className="text-[10px] text-violet-400/70 mt-1 font-bold">
                 Today's limit = ₹{riskState.dailyLimit.toFixed(0)} &nbsp;({cfg.riskPercent}% of ₹{liveCapital.toFixed(0)})
@@ -258,7 +284,7 @@ const CapitalRiskPanel: React.FC<{
                 : 'bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-600/20'
             }`}
           >
-            {saved ? '✓ Saved!' : 'Update Capital'}
+            {saved ? '✓ Saved!' : 'Save Starting Capital'}
           </button>
         </div>
       )}
@@ -464,7 +490,7 @@ const RuleEditor: React.FC<{ onSave: (r: DisciplineRule) => void }> = ({ onSave 
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-const DisciplinePage: React.FC<Props> = ({ trades }) => {
+const DisciplinePage: React.FC<Props> = ({ trades, totalOptionNetPnl }) => {
   const [rules, setRules] = useState<DisciplineRule>(loadRules());
 
   const state = useMemo(
@@ -623,7 +649,7 @@ const DisciplinePage: React.FC<Props> = ({ trades }) => {
       </div>
 
       {/* ── Capital Risk Control ── */}
-      <CapitalRiskPanel trades={trades} todayNetPnl={state.todayNetPnl} />
+      <CapitalRiskPanel trades={trades} todayNetPnl={state.todayNetPnl} totalOptionNetPnl={totalOptionNetPnl} />
 
       {/* ── Psychology Tips ── */}
       <div>

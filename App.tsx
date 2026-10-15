@@ -515,7 +515,7 @@ const TradeJournal: React.FC = () => {
               />
             } />
             <Route path="/market" element={<MarketCalendar />} />
-            <Route path="/discipline" element={<DisciplinePage trades={trades} />} />
+            <Route path="/discipline" element={<DisciplinePage trades={trades} totalOptionNetPnl={optionTrades.filter(t => t.status === 'Closed').reduce((s, t) => s + (t.netPnl ?? 0), 0)} />} />
             <Route path="/options" element={<OptionsPage onTradesChange={fetchOptionTrades} />} />
             <Route path="/add" element={
               <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">

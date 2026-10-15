@@ -9,6 +9,8 @@ import { useAuth } from '../context/AuthContext';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+import { loadCapitalRisk } from '../hooks/useDiscipline';
+
 const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n);
 const fmtNum = (n: number) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n);
 
@@ -1062,22 +1064,60 @@ const OptionsCalendar: React.FC<{ trades: OptionTrade[]; onDelete: (id: string) 
 // ─── Stats Cards ──────────────────────────────────────────────────────────────
 
 
-const StatsBar: React.FC<{ stats: OptionStats }> = ({ stats }) => (
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-    {[
-      { label: 'Net P&L', value: fmt(stats.totalNetPnl), color: stats.totalNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400', sub: `Gross: ${fmt(stats.totalGrossPnl)}` },
-      { label: 'Win Rate', value: `${stats.winRate.toFixed(1)}%`, color: stats.winRate >= 50 ? 'text-emerald-400' : 'text-rose-400', sub: `${stats.winTrades}W / ${stats.lossTrades}L` },
-      { label: 'Avg ROI', value: `${stats.avgRoi.toFixed(1)}%`, color: stats.avgRoi >= 0 ? 'text-indigo-400' : 'text-rose-400', sub: `${stats.closedTrades} closed` },
-      { label: 'Total Charges', value: fmt(stats.totalCharges), color: 'text-amber-400', sub: `${stats.openTrades} open` },
-    ].map(card => (
-      <div key={card.label} className="bg-slate-900/60 border border-slate-700/50 rounded-2xl p-4 hover:border-slate-600 transition-colors">
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{card.label}</p>
-        <p className={`text-xl font-black mt-1 ${card.color}`}>{card.value}</p>
-        <p className="text-[10px] text-slate-600 mt-0.5">{card.sub}</p>
+const StatsBar: React.FC<{ stats: OptionStats }> = ({ stats }) => {
+  // Read capital config to show running account value
+  const capitalCfg = loadCapitalRisk();
+  const showAccountValue = capitalCfg.enabled && (capitalCfg.startingCapital || 0) > 0;
+  const accountValue = (capitalCfg.startingCapital || 0) + stats.totalNetPnl;
+  const isAccountUp = accountValue >= (capitalCfg.startingCapital || 0);
+  const riskLimit = showAccountValue
+    ? (accountValue * capitalCfg.riskPercent) / 100
+    : 0;
+
+  const baseCards = [
+    { label: 'Net P&L', value: fmt(stats.totalNetPnl), color: stats.totalNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400', sub: `Gross: ${fmt(stats.totalGrossPnl)}` },
+    { label: 'Win Rate', value: `${stats.winRate.toFixed(1)}%`, color: stats.winRate >= 50 ? 'text-emerald-400' : 'text-rose-400', sub: `${stats.winTrades}W / ${stats.lossTrades}L` },
+    { label: 'Avg ROI', value: `${stats.avgRoi.toFixed(1)}%`, color: stats.avgRoi >= 0 ? 'text-indigo-400' : 'text-rose-400', sub: `${stats.closedTrades} closed` },
+    { label: 'Total Charges', value: fmt(stats.totalCharges), color: 'text-amber-400', sub: `${stats.openTrades} open` },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {showAccountValue && (
+        <div className="bg-gradient-to-r from-violet-900/30 to-indigo-900/20 border border-violet-500/20 rounded-2xl p-4 flex flex-wrap gap-4 items-center">
+          <div className="flex-1 min-w-[140px]">
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Account Value</p>
+            <p className={`text-2xl font-black mt-0.5 ${isAccountUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+              ₹{accountValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            </p>
+            <p className="text-[10px] text-slate-500 mt-0.5">
+              Started ₹{(capitalCfg.startingCapital || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })} &nbsp;•&nbsp;
+              <span className={stats.totalNetPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                {stats.totalNetPnl >= 0 ? '+' : ''}{fmt(stats.totalNetPnl)}
+              </span>
+            </p>
+          </div>
+          <div className="flex gap-4 shrink-0">
+            <div>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Risk Limit ({capitalCfg.riskPercent}%)</p>
+              <p className="text-base font-black text-violet-400 mt-0.5">₹{riskLimit.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+              <p className="text-[9px] text-slate-600">on live ₹{accountValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {baseCards.map(card => (
+          <div key={card.label} className="bg-slate-900/60 border border-slate-700/50 rounded-2xl p-4 hover:border-slate-600 transition-colors">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{card.label}</p>
+            <p className={`text-xl font-black mt-1 ${card.color}`}>{card.value}</p>
+            <p className="text-[10px] text-slate-600 mt-0.5">{card.sub}</p>
+          </div>
+        ))}
       </div>
-    ))}
-  </div>
-);
+    </div>
+  );
+};
 
 // ─── Main Options Page ────────────────────────────────────────────────────────
 
