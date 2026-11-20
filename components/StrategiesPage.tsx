@@ -98,22 +98,67 @@ const StrategyFormModal: React.FC<FormModalProps> = ({ initial, onSave, onClose,
   const [trend, setTrend] = useState<StrategyTrend>(initial?.trend || 'Uptrend');
   const [timeframes, setTimeframes] = useState<StrategyTimeframe[]>(initial?.timeframes || []);
   const [explanation, setExplanation] = useState(initial?.explanation || '');
-  const [existingImageUrls] = useState<string[]>(initial?.image_urls || []);
+  // Existing saved images — mutable so user can remove them
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>(initial?.image_urls || []);
+  // New images picked via file picker or clipboard paste
   const [newImages, setNewImages] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [pasteHint, setPasteHint] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   const finalName = useCustom ? customName.trim() : name;
 
-  const handleFiles = (files: FileList | null) => {
-    if (!files) return;
-    const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
-    setNewImages(prev => [...prev, ...arr]);
-    arr.forEach(f => {
+  // ── Add image files (from picker or paste) ────────────────────────────────
+  const addImageFiles = (files: File[]) => {
+    const imgs = files.filter(f => f.type.startsWith('image/'));
+    if (!imgs.length) return;
+    setNewImages(prev => [...prev, ...imgs]);
+    imgs.forEach(f => {
       const reader = new FileReader();
       reader.onload = e => setPreviewUrls(prev => [...prev, e.target?.result as string]);
       reader.readAsDataURL(f);
     });
+  };
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files) return;
+    addImageFiles(Array.from(files));
+  };
+
+  // ── Clipboard paste ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const imageFiles: File[] = [];
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) imageFiles.push(file);
+        }
+      }
+      if (imageFiles.length > 0) {
+        addImageFiles(imageFiles);
+        setPasteHint(true);
+        setTimeout(() => setPasteHint(false), 2000);
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, []);
+
+  // ── Drag & drop ────────────────────────────────────────────────────────────
+  const [isDragging, setIsDragging] = useState(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    addImageFiles(Array.from(e.dataTransfer.files));
+  };
+
+  // ── Remove images ──────────────────────────────────────────────────────────
+  const removeExistingImage = (i: number) => {
+    setExistingImageUrls(prev => prev.filter((_, idx) => idx !== i));
   };
 
   const removeNewImage = (i: number) => {
@@ -211,38 +256,73 @@ const StrategyFormModal: React.FC<FormModalProps> = ({ initial, onSave, onClose,
 
           {/* Images */}
           <div className="space-y-3">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Chart Screenshots</label>
-            {/* Existing images */}
-            {existingImageUrls.length > 0 && (
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Chart Screenshots</label>
+              <span className="text-[9px] text-slate-600">Upload · Paste · Drag & Drop</span>
+            </div>
+
+            {/* Unified image grid — existing + new side by side */}
+            {(existingImageUrls.length > 0 || previewUrls.length > 0) && (
               <div className="grid grid-cols-3 gap-2">
+                {/* Existing saved images with remove button */}
                 {existingImageUrls.map((url, i) => (
-                  <div key={i} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-700/50">
-                    <img src={url} alt={`Chart ${i + 1}`} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
-                      <span className="text-xs text-white font-bold">Saved</span>
-                    </div>
+                  <div key={`existing-${i}`} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-700/50">
+                    <img src={url} alt={`Saved ${i + 1}`} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all" />
+                    <button
+                      type="button"
+                      onClick={() => removeExistingImage(i)}
+                      className="absolute top-1 right-1 w-6 h-6 bg-rose-500 hover:bg-rose-400 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+                      title="Remove image"
+                    >✕</button>
+                    <span className="absolute bottom-1 left-1 text-[8px] text-white/70 font-bold bg-black/40 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-all">Saved</span>
                   </div>
                 ))}
-              </div>
-            )}
-            {/* New image previews */}
-            {previewUrls.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
+                {/* New images (not yet uploaded) with remove button */}
                 {previewUrls.map((url, i) => (
-                  <div key={i} className="relative group aspect-video rounded-xl overflow-hidden border border-indigo-500/30">
+                  <div key={`new-${i}`} className="relative group aspect-video rounded-xl overflow-hidden border border-indigo-500/30">
                     <img src={url} alt={`New ${i + 1}`} className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => removeNewImage(i)}
-                      className="absolute top-1 right-1 w-6 h-6 bg-rose-500 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-all">✕</button>
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all" />
+                    <button
+                      type="button"
+                      onClick={() => removeNewImage(i)}
+                      className="absolute top-1 right-1 w-6 h-6 bg-rose-500 hover:bg-rose-400 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+                      title="Remove image"
+                    >✕</button>
+                    <span className="absolute bottom-1 left-1 text-[8px] text-indigo-300 font-bold bg-black/40 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-all">New</span>
                   </div>
                 ))}
               </div>
             )}
+
+            {/* Drop zone — doubles as upload button */}
             <input type="file" ref={fileRef} multiple accept="image/*" className="hidden" onChange={e => handleFiles(e.target.files)} />
-            <button type="button" onClick={() => fileRef.current?.click()}
-              className="w-full py-3 border-2 border-dashed border-slate-700 hover:border-indigo-500/50 rounded-xl text-slate-500 hover:text-indigo-400 text-xs font-bold transition-all flex items-center justify-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              Upload Chart Screenshots
-            </button>
+            <div
+              ref={dropZoneRef}
+              onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => fileRef.current?.click()}
+              className={`w-full py-4 border-2 border-dashed rounded-xl cursor-pointer transition-all flex flex-col items-center justify-center gap-2 select-none ${
+                isDragging
+                  ? 'border-indigo-400 bg-indigo-500/10 text-indigo-400'
+                  : pasteHint
+                  ? 'border-emerald-400 bg-emerald-500/10 text-emerald-400'
+                  : 'border-slate-700 hover:border-indigo-500/50 text-slate-500 hover:text-indigo-400'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              {pasteHint ? (
+                <span className="text-xs font-bold">✓ Image pasted!</span>
+              ) : isDragging ? (
+                <span className="text-xs font-bold">Drop to add</span>
+              ) : (
+                <div className="text-center">
+                  <p className="text-xs font-bold">Click to upload or drag & drop</p>
+                  <p className="text-[9px] mt-0.5 opacity-70">or press <kbd className="px-1.5 py-0.5 bg-slate-700 rounded text-slate-300 text-[8px] font-mono">Ctrl+V</kbd> to paste from clipboard</p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Submit */}
