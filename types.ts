@@ -175,3 +175,28 @@ export interface OptionStats {
   bestTrade: number;
   worstTrade: number;
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STRATEGIES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type StrategyMarket = 'Indian' | 'Forex' | 'Crypto';
+export type StrategyTrend = 'Uptrend' | 'Downtrend' | 'Sideways';
+export type StrategyTimeframe = '1m' | '5m' | '15m' | '30m' | '1H' | '4H' | 'Daily' | 'Weekly';
+
+export const STRATEGY_TIMEFRAMES: StrategyTimeframe[] = ['1m', '5m', '15m', '30m', '1H', '4H', 'Daily', 'Weekly'];
+export const PRESET_STRATEGY_NAMES = ['EMA', 'Order Block', 'FVG', 'Trendline Breakout', 'Support & Resistance', 'VWAP', 'RSI Divergence', 'Ichimoku', 'Bollinger Bands', 'Price Action'];
+
+export interface Strategy {
+  id: string;
+  user_id?: string;
+  name: string;
+  market: StrategyMarket;
+  trend: StrategyTrend;
+  timeframes: StrategyTimeframe[];
+  explanation: string;
+  image_urls: string[];
+  created_at?: string;
+  updated_at?: string;
+}
